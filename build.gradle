@@ -1,0 +1,156 @@
+buildscript {
+    repositories {
+        jcenter()
+        // Legacy ForgeGradle 2.3 requires the old maven; keep both for reliability.
+        maven { url = 'https://files.minecraftforge.net/maven' }
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://maven.cil.li/' } // OpenComputers
+        mavenCentral()
+        maven { url = 'https://plugins.gradle.org/m2/' } // CurseGradle plugin
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+        classpath 'gradle.plugin.com.matthewprenger:CurseGradle:1.4.0'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'java'
+apply plugin: 'com.matthewprenger.cursegradle'
+
+version = '0.1.0'
+group = 'net.ocgendustry'
+archivesBaseName = 'apiarist-terminal'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+
+minecraft {
+    version = "1.12.2-14.23.5.2847"
+    runDir = "run"
+    mappings = "stable_39"
+}
+
+repositories {
+    maven { url = 'https://maven.cil.li/' } // OpenComputers artifacts
+    // CurseMaven lets us download CF-hosted jars via projectId/fileId
+    maven { url = 'https://cursemaven.com' }
+    mavenCentral()
+    // IndustrialCraft 2 API
+    maven { url = 'https://maven.ic2.player.to/' }
+    // CoFH / RedstoneFlux API (hosted on covers1624 maven)
+    maven { url = 'https://maven.covers1624.net/' }
+    // Fallback for local deobf jars of Gendustry/bdlib placed under libs/
+    flatDir { dirs 'libs' }
+}
+
+dependencies {
+    // OpenComputers API (needed on compile classpath; not bundled in the jar)
+    compile 'li.cil.oc:OpenComputers:MC1.12.2-1.7.5.214:api'
+
+    // Prefer automatic download + deobf from CurseMaven if IDs are provided in gradle.properties
+    if (project.hasProperty('gendustryProjectId') && project.hasProperty('gendustryFileId') && gendustryProjectId && gendustryFileId) {
+        deobfCompile "curse.maven:gendustry-${gendustryProjectId}:${gendustryFileId}"
+    } else {
+        // Fallback to local deobf jar
+        compileOnly files('libs/gendustry-deobf.jar')
+    }
+
+    if (project.hasProperty('bdlibProjectId') && project.hasProperty('bdlibFileId') && bdlibProjectId && bdlibFileId) {
+        deobfCompile "curse.maven:bdlib-${bdlibProjectId}:${bdlibFileId}"
+    } else {
+        // Fallback to local deobf jar
+        compileOnly files('libs/bdlib-deobf.jar')
+    }
+
+    // Provided by the game at runtime
+    provided 'net.minecraft:launchwrapper:1.12'
+
+    // APIs required by Gendustry's tile classes during compilation
+    compileOnly 'net.industrial-craft:industrialcraft-2:2.8.170-ex112:api'
+    compileOnly 'cofh:RedstoneFlux:1.12-2.1.0.6:universal'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'mcversion', project.minecraft.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': project.minecraft.version
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+        exclude 'ocadvmutatron_at.cfg'
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+            'FMLAT': 'ocgendustry_at.cfg'
+        )
+    }
+}
+
+// Helper: print which dependency sources will be used
+task printDeps {
+    group = 'help'
+    description = 'Prints which dependency path will be used for Gendustry/bdlib and shows current CurseMaven properties.'
+    doLast {
+        def gProj = project.hasProperty('gendustryProjectId') ? project.property('gendustryProjectId') : ''
+        def gFile = project.hasProperty('gendustryFileId') ? project.property('gendustryFileId') : ''
+        def bProj = project.hasProperty('bdlibProjectId') ? project.property('bdlibProjectId') : ''
+        def bFile = project.hasProperty('bdlibFileId') ? project.property('bdlibFileId') : ''
+
+        println '--- Dependency resolution overview ---'
+        println "Gendustry: projectId='${gProj}', fileId='${gFile}'"
+        if (gProj && gFile) {
+            println " -> Using CurseMaven: curse.maven:gendustry-${gProj}:${gFile} (deobfCompile)"
+        } else {
+            println " -> Using local fallback: libs/gendustry-deobf.jar (compileOnly)"
+        }
+
+        println "bdlib:     projectId='${bProj}', fileId='${bFile}'"
+        if (bProj && bFile) {
+            println " -> Using CurseMaven: curse.maven:bdlib-${bProj}:${bFile} (deobfCompile)"
+        } else {
+            println " -> Using local fallback: libs/bdlib-deobf.jar (compileOnly)"
+        }
+
+        if ((gProj && !gFile) || (!gProj && gFile)) {
+            println 'WARN: Gendustry has a partial property set; provide BOTH projectId and fileId to use CurseMaven.'
+        }
+        if ((bProj && !bFile) || (!bProj && bFile)) {
+            println 'WARN: bdlib has a partial property set; provide BOTH projectId and fileId to use CurseMaven.'
+        }
+    }
+}
+
+// CurseForge publishing configuration (runs with gradle curseforge)
+// Apply only if a project id is provided to avoid configuration errors during normal builds.
+if ((project.findProperty('curseforgeProjectId') ?: System.getenv('CURSEFORGE_PROJECT_ID'))?.toString()?.trim()) {
+    def cfId = (project.findProperty('curseforgeProjectId') ?: System.getenv('CURSEFORGE_PROJECT_ID')).toString().trim()
+    curseforge {
+        apiKey = System.getenv('CURSEFORGE_TOKEN') ?: (project.hasProperty('curseforgeApiKey') ? project.property('curseforgeApiKey') : '')
+        project {
+            id = cfId
+            releaseType = project.findProperty('curseforgeReleaseType') ?: 'release'
+            changelog = project.findProperty('curseforgeChangelog') ?: 'Automated build'
+            changelogType = 'markdown'
+            addGameVersion '1.12.2'
+            addGameVersion 'Java 8'
+
+            mainArtifact(jar) {
+                displayName = "The Apiarist Terminal ${project.version}"
+                relations {
+                    requiredDependency 'opencomputers'
+                    requiredDependency 'gendustry'
+                    requiredDependency 'bdlib'
+                }
+            }
+        }
+    }
+}
