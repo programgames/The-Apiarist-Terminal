@@ -23,7 +23,7 @@ Notes
 ## Provided callbacks (advmutatron)
 These are the callbacks exposed to OpenComputers for the Advanced Mutatron component.
 
-- `listMutations(): table` — Returns a table (1..N) of mutation info tables `{ index, key, name, label, nbt? }`.
+- `listMutations(): table` — Returns a table (1..N) of mutation info tables `{ index, key, name, label?, nbt? }`.
 - `setMutation(n: number): boolean, string?` — Select mutation by 1-based index (from `listMutations`) or by raw key. **Automatically attempts to start the mutation** if conditions are met (items present, power available). Returns `false, err` on invalid index/key.
 - `start(): boolean` — Try to start processing with the currently selected mutation. Useful for retrying after adding items/power, or for batch processing the same mutation repeatedly.
 
@@ -46,7 +46,8 @@ local adv = component.advmutatron
 -- List available mutations
 local mutations = adv.listMutations()
 for i, mut in pairs(mutations) do
-  print(i, mut.label)
+  -- label may be nil if the stack lacks NBT to avoid Forestry genome spam
+  print(i, mut.label or mut.name)
 end
 
 -- Select and start mutation #1 (auto-starts if items/power available)

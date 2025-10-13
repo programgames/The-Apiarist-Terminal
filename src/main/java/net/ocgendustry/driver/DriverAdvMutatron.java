@@ -74,36 +74,43 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             return tile.tryStart();
         }
 
-        @Callback(doc = "function():table -- Returns a table of possible mutations keyed by 1..N with fields {index,key,name,label,nbt?}.")
+        @Callback(doc = "function():table -- Returns a table of possible mutations keyed by 1..N with fields {index,key,name,label?,nbt?}.")
         public Object[] listMutations(Context ctx, Arguments args) {
             try {
                 Map<Integer, ItemStack> map = getPossibleMutations();
                 LinkedHashMap<Integer, Object> out = new LinkedHashMap<>();
+
                 if (map != null) {
                     int i = 0;
+
                     for (Map.Entry<Integer, ItemStack> e : map.entrySet()) {
                         ItemStack stack = e.getValue();
                         if (stack == null || stack.isEmpty()) continue;
+
                         i++;
+
                         LinkedHashMap<String, Object> info = new LinkedHashMap<>();
                         info.put("index", i);
                         info.put("key", e.getKey());
+
                         try {
                             if (stack.getItem() != null && stack.getItem().getRegistryName() != null) {
                                 info.put("name", stack.getItem().getRegistryName().toString());
                             }
-                            info.put("label", stack.getDisplayName());
+
+                            // Avoid calling getDisplayName() on genetic items with no genome NBT, which causes Forestry to log spam.
                             if (stack.hasTagCompound() && stack.getTagCompound() != null) {
+                                info.put("label", stack.getDisplayName());
                                 info.put("nbt", stack.getTagCompound().toString());
                             }
                         } catch (Throwable ignored) {}
+
                         out.put(i, info);
                     }
                 }
 
                 return new Object[]{ out };
             } catch (Throwable t) {
-                Log.error("listMutations failed", t);
                 return new Object[]{ new LinkedHashMap<>() };
             }
         }
@@ -112,6 +119,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         public Object[] setMutation(Context ctx, Arguments args) {
             try {
                 int n = args.checkInteger(0);
+
                 Map<Integer, ItemStack> map = getPossibleMutations();
                 if (map == null || map.isEmpty()) {
                     return new Object[]{ false, "no mutations available" };
@@ -123,6 +131,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
                     int i = 0;
                     for (Integer k : map.keySet()) {
                         i++;
+
                         if (i == n) {
                             keyToUse = k;
                             break;
@@ -135,6 +144,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
                 }
 
                 setMutation(keyToUse);
+
                 return new Object[]{ true };
             } catch (Throwable t) {
                 return new Object[]{ false, t.toString() };
@@ -145,9 +155,9 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         public Object[] start(Context ctx, Arguments args) {
             try {
                 boolean started = tryStart();
+
                 return new Object[]{ started };
             } catch (Throwable t) {
-                Log.error("start failed", t);
                 return new Object[]{ false };
             }
         }
