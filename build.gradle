@@ -18,7 +18,7 @@ apply plugin: 'net.minecraftforge.gradle.forge'
 apply plugin: 'java'
 apply plugin: 'com.matthewprenger.cursegradle'
 
-version = '0.1.0'
+version = '0.2.0'
 group = 'net.ocgendustry'
 archivesBaseName = 'apiarist-terminal'
 
@@ -36,6 +36,8 @@ repositories {
     maven { url = 'https://maven.cil.li/' } // OpenComputers artifacts
     // CurseMaven lets us download CF-hosted jars via projectId/fileId
     maven { url = 'https://cursemaven.com' }
+    // Forestry artifacts are hosted on ModMaven
+    maven { url = 'https://modmaven.dev' }
     mavenCentral()
     // IndustrialCraft 2 API
     maven { url = 'https://maven.ic2.player.to/' }
@@ -70,6 +72,13 @@ dependencies {
     // APIs required by Gendustry's tile classes during compilation
     compileOnly 'net.industrial-craft:industrialcraft-2:2.8.170-ex112:api'
     compileOnly 'cofh:RedstoneFlux:1.12-2.1.0.6:universal'
+
+    // Forestry (API is packaged in main jar for 1.12.2); needed for interfaces like IBeekeepingLogic/IErrorLogic
+    deobfCompile 'net.sengir.forestry:forestry_1.12.2:5.8.2.422'
+
+    // Test deps (pure unit tests only; no MC bootstrap)
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.assertj:assertj-core:3.24.2'
 }
 
 processResources {

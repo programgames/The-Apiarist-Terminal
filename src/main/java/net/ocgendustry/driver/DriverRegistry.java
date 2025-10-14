@@ -12,11 +12,14 @@ public final class DriverRegistry {
             try { Log.info("Driver registration skipped (already registered)"); } catch (Throwable ignored) {}
             return;
         }
+
         // Register each machine driver here.
         Driver.add(new DriverAdvMutatron());
+        Driver.add(new DriverApiary());
         registered = true;
+
         try {
-            Log.info("Registered OpenComputers driver: DriverAdvMutatron");
+            Log.info("Registered OpenComputers drivers: DriverAdvMutatron, DriverApiary");
         } catch (Throwable ignored) {}
     }
 }

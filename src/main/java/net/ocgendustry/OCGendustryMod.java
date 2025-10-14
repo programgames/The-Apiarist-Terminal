@@ -5,9 +5,12 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLInterModComms;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.ocgendustry.driver.DriverRegistry;
+import net.ocgendustry.Config;
+import net.ocgendustry.command.OcGendustryCommand;
 
-@Mod(modid = OCGendustryMod.MODID, name = OCGendustryMod.NAME, version = OCGendustryMod.VERSION, acceptedMinecraftVersions = "[1.12,1.12.2]", dependencies = "required-after:forge@[14.23.5.2847,);after:opencomputers;required-after:gendustry")
+@Mod(modid = OCGendustryMod.MODID, name = OCGendustryMod.NAME, version = OCGendustryMod.VERSION, acceptedMinecraftVersions = "[1.12,1.12.2]", dependencies = "required-after:forge@[14.23.5.2847,);after:opencomputers;required-after:gendustry", guiFactory = "net.ocgendustry.client.GuiFactory")
 public class OCGendustryMod {
     public static final String MODID = "ocgendustry";
     public static final String NAME = "The Apiarist Terminal";
@@ -15,6 +18,8 @@ public class OCGendustryMod {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        // Load config first
+        Config.init(event);
         // Register drivers in preInit, but AFTER OpenComputers preInit via dependency ordering
         Log.info("Registering drivers in preInit (after OC preInit)");
         DriverRegistry.registerAll();
@@ -28,5 +33,11 @@ public class OCGendustryMod {
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         // No-op
+    }
+
+    @Mod.EventHandler
+    public void serverStarting(FMLServerStartingEvent event) {
+        // Register root command with subcommands (gated by config inside the command itself)
+        event.registerServerCommand(new OcGendustryCommand());
     }
 }

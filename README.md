@@ -17,49 +17,39 @@ OpenComputers drivers that expose Gendustry machines as OC components.
 3) Start the game. If dependencies are missing or incompatible, Forge will report it during load.
 
 Notes
-- Advanced Mutatron's name: `advmutatron`. Attach an Adapter/Cable to the Advanced Mutatron.
+- Components:
+  - Advanced Mutatron: `advmutatron`
+  - Industrial Apiary: `industrial_apiary`
+- Attach an Adapter/Cable to the machine.
 - Logging tag: `[ApiaristTerminal]`. Errors will mention driver names for easier troubleshooting.
 
-## Provided callbacks (advmutatron)
-These are the callbacks exposed to OpenComputers for the Advanced Mutatron component.
+## Component API docs
+Full callback reference can be found in per-component docs, along with quick start and examples:
 
-- `listMutations(): table` — Returns a table (1..N) of mutation info tables `{ index, key, name, label?, nbt? }`.
-- `setMutation(n: number): boolean, string?` — Select mutation by 1-based index (from `listMutations`) or by raw key. **Automatically attempts to start the mutation** if conditions are met (items present, power available). Returns `false, err` on invalid index/key.
-- `start(): boolean` — Try to start processing with the currently selected mutation. Useful for retrying after adding items/power, or for batch processing the same mutation repeatedly.
+- Advanced Mutatron: `docs/components/advmutatron.md`
+- Industrial Apiary: `docs/components/industrial_apiary.md`
 
-**Note on usage:**
-- `setMutation()` will automatically try to start the mutation, so calling `start()` immediately after is usually redundant.
-- `start()` always returns `false` if the machine is already running or couldn't start.
-- To check if processing succeeded, wait a few seconds and check the output slot, rather than relying on `start()`'s return value.
+## Configuration
+- In-game: Mods -> The Apiarist Terminal -> Config opens a GUI to tweak defaults.
+- File: `config/ocgendustry.cfg` creates after first run. You can hand-edit values.
 
-## Quick start (OpenComputers)
-- Connect an Adapter to an Advanced Mutatron.
-- From an OC computer:
-  - Use `component.list("advmutatron")` to find the address.
-  - Invoke methods like `component.proxy(addr).listMutations()`.
+Currently exposed defaults:
+- Advanced Mutatron: signal interval (ticks) and wait step (seconds) used by events/blocking helpers.
+  - Changes apply to newly created component instances; to apply live, call `adv.applyDefaultTuning()` from an OC computer.
 
-**Example automation script:**
-```lua
-local component = require("component")
-local adv = component.advmutatron
+### Event controls
+- Global (server/admin): `general.enableEvents` — hard-disables all OC signals from all devices when false.
+- Per-device defaults:
+  - `advanced_mutatron.defaultEventsEnabled`
+  - `industrial_apiary.defaultEventsEnabled`
+- Per-device runtime (from OC):
+  - `setEventsEnabled(boolean)` — toggle events for that single device instance
+  - `getEventsEnabled()` — device flag only
+  - `areEventsEnabled()` — effective flag (global AND device)
 
--- List available mutations
-local mutations = adv.listMutations()
-for i, mut in pairs(mutations) do
-  -- label may be nil if the stack lacks NBT to avoid Forestry genome spam
-  print(i, mut.label or mut.name)
-end
-
--- Select and start mutation #1 (auto-starts if items/power available)
-local success, err = adv.setMutation(1)
-if not success then
-  print("Failed to set mutation: " .. (err or "unknown"))
-end
-
--- Wait for processing (check output slot to confirm completion)
--- To repeat the same mutation without reselecting:
--- adv.start()  -- will attempt to start with current mutation
-```
+Notes:
+- Devices initialize their per-device flag from the config default on create and when calling `applyDefaultTuning()`.
+- When `general.enableEvents=false`, no device will emit events regardless of its per-device flag.
 
 ## Extending support
 If you want to add drivers for more Gendustry machines, see the development guide for structure and guidelines.
@@ -82,3 +72,6 @@ Contributions are welcome! For small fixes or features:
 - This module: MIT (see `LICENSE`).
 - Gendustry: WTFPL.
 - OpenComputers: MIT-like.
+
+## Changelog
+See `CHANGELOG.md` for release notes.
