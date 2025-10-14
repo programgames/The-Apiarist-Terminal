@@ -36,6 +36,9 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Make scripts executable
+        run: chmod +x .github/scripts/*.sh
+
       - name: Build
         working-directory: .
         run: |
@@ -56,40 +59,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF##*/}"
-          TAG_MESSAGE=$(git tag -l --format='%(contents)' "$TAG")
           TAG_COMMIT=$(git rev-list -n 1 "$TAG")
-          git show "$TAG_COMMIT:CHANGELOG.md" > /tmp/RELEASE_CHANGELOG 2>/dev/null || true
-          # Prefer only the section for this tag from CHANGELOG.md
-          VERSION_CORE=$(echo "$TAG" | sed -E 's/^v//; s/^([0-9]+(\.[0-9]+)*).*/\1/')
-          if [ -s /tmp/RELEASE_CHANGELOG ]; then
-            EXTRACTED=$(awk -v ver="$VERSION_CORE" '
-              BEGIN{found=0}
-              $0 ~ "^##[[:space:]]*\\[" ver "\\]" {found=1; print; next}
-              found && $0 ~ "^##[[:space:]]*\\[" {exit}
-              found {print}
-            ' /tmp/RELEASE_CHANGELOG)
-          fi
-          if [ -s /tmp/RELEASE_CHANGELOG ]; then
-            if [ -n "$EXTRACTED" ]; then
-              CHANGELOG_CONTENT="$EXTRACTED"
-            else
-              CHANGELOG_CONTENT=$(cat /tmp/RELEASE_CHANGELOG)
-            fi
-            if [ -n "$TAG_MESSAGE" ]; then
-              RELEASE_NOTES="$TAG_MESSAGE\n\n$CHANGELOG_CONTENT"
-            else
-              RELEASE_NOTES="$CHANGELOG_CONTENT"
-            fi
-          else
-            if [ -n "$TAG_MESSAGE" ]; then
-              RELEASE_NOTES="$TAG_MESSAGE"
-            else
-              RELEASE_NOTES="The Apiarist Terminal $TAG"
-            fi
-          fi
+            NOTES_FILE="/tmp/release_notes.md"
+          .github/scripts/build_release_notes.sh "$TAG" "${GITHUB_REPOSITORY%/*}" "${GITHUB_REPOSITORY#*/}" "$TAG_COMMIT" "${GITHUB_SERVER_URL:-https://github.com}" > "$NOTES_FILE"
+          echo "Generated release notes:" >&2
+          sed 's/^/  /' "$NOTES_FILE" >&2
           gh release create "$TAG" build/libs/*.jar \
             --title "The Apiarist Terminal $TAG" \
-            --notes "$RELEASE_NOTES" \
+            --notes-file "$NOTES_FILE" \
             $(if [[ "$TAG" =~ [ab]|rc|pre ]]; then echo "--prerelease"; fi)
 
       - name: Publish to CurseForge (tags only; infer release type)
@@ -105,13 +82,11 @@ jobs:
           TAG="${GIT_TAG:-${GITHUB_REF##*/}}"
           LOWER=$(echo "$TAG" | tr '[:upper:]' '[:lower:]')
           RELEASE_TYPE=release
-          # Keyword-based detection works regardless of separators
           if [[ "$LOWER" == *alpha* ]]; then
             RELEASE_TYPE=alpha
           elif [[ "$LOWER" == *beta* || "$LOWER" == *rc* || "$LOWER" == *pre* ]]; then
             RELEASE_TYPE=beta
           else
-            # Suffix-based detection: v0.1.1a / v0.1.1b (no dashes)
             CORE=$(echo "$LOWER" | sed -E 's/^v//')
             if [[ "$CORE" =~ ^[0-9]+(\.[0-9]+)*a([0-9]*)?$ ]]; then
               RELEASE_TYPE=alpha
@@ -119,38 +94,8 @@ jobs:
               RELEASE_TYPE=beta
             fi
           fi
-          # Try to get annotated tag message, fallback to commit message
-          TAG_MESSAGE=$(git tag -l --format='%(contents)' "$TAG")
           TAG_COMMIT=$(git rev-list -n 1 "$TAG")
-          git show "$TAG_COMMIT:CHANGELOG.md" > /tmp/RELEASE_CHANGELOG 2>/dev/null || true
-          VERSION_CORE=$(echo "$TAG" | sed -E 's/^v//; s/^([0-9]+(\.[0-9]+)*).*/\1/')
-          if [ -s /tmp/RELEASE_CHANGELOG ]; then
-            EXTRACTED=$(awk -v ver="$VERSION_CORE" '
-              BEGIN{found=0}
-              $0 ~ "^##[[:space:]]*\\[" ver "\\]" {found=1; print; next}
-              found && $0 ~ "^##[[:space:]]*\\[" {exit}
-              found {print}
-            ' /tmp/RELEASE_CHANGELOG)
-          fi
-          if [ -s /tmp/RELEASE_CHANGELOG ]; then
-            if [ -n "$EXTRACTED" ]; then
-              CHANGELOG_CONTENT="$EXTRACTED"
-            else
-              CHANGELOG_CONTENT=$(cat /tmp/RELEASE_CHANGELOG)
-            fi
-            if [ -n "$TAG_MESSAGE" ]; then
-              CL="$TAG_MESSAGE\n\n$CHANGELOG_CONTENT"
-            else
-              CL="$CHANGELOG_CONTENT"
-            fi
-          else
-            if [ -n "$TAG_MESSAGE" ]; then
-              CL="$TAG_MESSAGE"
-            else
-              CL=${CHANGELOG:-"Release $TAG"}
-            fi
-          fi
-
+          CL=$(.github/scripts/build_release_notes.sh "$TAG" "${GITHUB_REPOSITORY%/*}" "${GITHUB_REPOSITORY#*/}" "$TAG_COMMIT" "${GITHUB_SERVER_URL:-https://github.com}")
           ./gradlew curseforge --no-daemon \
             -PcurseforgeProjectId="$CURSEFORGE_PROJECT_ID" \
             -PcurseforgeChangelog="$CL" \
