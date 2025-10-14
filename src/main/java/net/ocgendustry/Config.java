@@ -48,28 +48,21 @@ public final class Config {
 
     public static void syncFromFile() {
         if (config == null) return;
-        try {
-            config.load();
-            readValues(config);
 
-        } catch (Throwable ignored) {
-            // Just skip bad configs
-        } finally {
-            if (config.hasChanged()) config.save();
-        }
+        config.load();
+        readValues(config);
+
+        if (config.hasChanged()) config.save();
     }
 
     // Read current values from the existing Configuration object (no reload), then save.
     public static void syncFromGui() {
         if (config == null) return;
-        try {
-            // Do NOT call load() here; the GUI has already applied changes to this instance.
-            readValues(config);
-        } catch (Throwable ignored) {
-            // Just skip bad configs
-        } finally {
-            if (config.hasChanged()) config.save();
-        }
+
+        // Do NOT call load() here; the GUI has already applied changes to this instance.
+        readValues(config);
+
+        if (config.hasChanged()) config.save();
     }
 
     private static void readValues(Configuration cfg) {

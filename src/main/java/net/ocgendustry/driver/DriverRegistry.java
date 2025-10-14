@@ -9,7 +9,7 @@ public final class DriverRegistry {
 
     public static void registerAll() {
         if (registered) {
-            try { Log.info("Driver registration skipped (already registered)"); } catch (Throwable ignored) {}
+            Log.info("Driver registration skipped (already registered)");
             return;
         }
 
@@ -18,8 +18,6 @@ public final class DriverRegistry {
         Driver.add(new DriverApiary());
         registered = true;
 
-        try {
-            Log.info("Registered OpenComputers drivers: DriverAdvMutatron, DriverApiary");
-        } catch (Throwable ignored) {}
+        Log.info("Registered OpenComputers drivers: DriverAdvMutatron, DriverApiary");
     }
 }

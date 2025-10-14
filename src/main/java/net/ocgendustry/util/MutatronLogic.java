@@ -17,9 +17,7 @@ public final class MutatronLogic {
         if (keysInOrder == null || keysInOrder.isEmpty()) return null;
 
         // If n is a valid 1-based position, return the key at that position
-        if (n >= 1 && n <= keysInOrder.size()) {
-            return keysInOrder.get(n - 1);
-        }
+        if (n >= 1 && n <= keysInOrder.size()) return keysInOrder.get(n - 1);
 
         // Otherwise treat n as a raw key
         for (Integer k : keysInOrder) {

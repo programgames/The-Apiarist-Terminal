@@ -48,6 +48,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         if (te instanceof TileMutatronAdv) {
             return new Environment((TileMutatronAdv) te);
         }
+
         return null;
     }
 
@@ -61,12 +62,10 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
                 .withComponent(componentName, Visibility.Network)
                 .create());
 
-            try {
-                // Apply defaults from config on environment create
-                signalInterval = MutatronLogic.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
-                waitStepSeconds = MutatronLogic.clampWaitStep(Config.advMutatronWaitInterval);
-                eventsEnabled = Config.advMutatronDefaultEventsEnabled;
-            } catch (Throwable ignored) {}
+            // Apply defaults from config on environment create
+            signalInterval = MutatronLogic.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
+            waitStepSeconds = MutatronLogic.clampWaitStep(Config.advMutatronWaitInterval);
+            eventsEnabled = Config.advMutatronDefaultEventsEnabled;
         }
 
         @Override
@@ -100,52 +99,43 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         @Override
         public boolean canUpdate() {
             // Enable per-tick update() only when event emissions are enabled.
-            try {
-                return net.ocgendustry.Config.enableEvents && eventsEnabled;
-            } catch (Throwable ignored) {
-                return true;
-            }
+            return net.ocgendustry.Config.enableEvents && eventsEnabled;
         }
 
         @Override
         public void update() {
-            try {
-                // Respect global config for event emissions
-                if (!net.ocgendustry.Config.enableEvents || !eventsEnabled) return;
+            // Respect global config for event emissions
+            if (!net.ocgendustry.Config.enableEvents || !eventsEnabled) return;
 
-                // Throttle update frequency for performance if configured
-                tickCounter++;
-                if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
+            // Throttle update frequency for performance if configured
+            tickCounter++;
+            if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
 
-                boolean working = tile.isWorking();
+            boolean working = tile.isWorking();
 
-                if (working && !lastWorking) {
-                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_started"});
-                } else if (!working && lastWorking) {
-                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_finished"});
-                }
+            if (working && !lastWorking) {
+                if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_started"});
+            } else if (!working && lastWorking) {
+                if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_finished"});
+            }
 
-                lastWorking = working;
+            lastWorking = working;
 
-                // Detect output changes (slot 2) and emit an event with the new stack info.
-                ItemStack out = tile.getStackInSlot(2);
-                String sig = signature(out);
-                if (!sig.equals(lastOutSig)) {
-                    lastOutSig = sig;
-                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_output", stackInfo(out)});
-                }
-            } catch (Throwable ignored) {}
+            // Detect output changes (slot 2) and emit an event with the new stack info.
+            ItemStack out = tile.getStackInSlot(2);
+            String sig = signature(out);
+            if (!sig.equals(lastOutSig)) {
+                lastOutSig = sig;
+                if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_output", stackInfo(out)});
+            }
         }
 
         @Callback(doc = "function(enable:boolean):boolean -- Enable or disable events for this device instance only (global config may still disable events). Returns true on success.")
         public Object[] setEventsEnabled(Context ctx, Arguments args) {
-            try {
-                boolean en = args.checkBoolean(0);
-                eventsEnabled = en;
-                return new Object[]{ true };
-            } catch (Throwable t) {
-                return new Object[]{ false };
-            }
+            boolean en = args.checkBoolean(0);
+            eventsEnabled = en;
+
+            return new Object[]{ true };
         }
 
         @Callback(doc = "function():boolean -- Returns the per-device eventsEnabled flag (does not consider global config).")
@@ -155,45 +145,37 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
 
         @Callback(doc = "function():boolean -- Returns whether events are effectively enabled right now (global AND per-device).")
         public Object[] areEventsEnabled(Context ctx, Arguments args) {
-            try {
-                return new Object[]{ net.ocgendustry.Config.enableEvents && eventsEnabled };
-            } catch (Throwable t) {
-                return new Object[]{ eventsEnabled };
-            }
+            return new Object[]{ net.ocgendustry.Config.enableEvents && eventsEnabled };
         }
 
         private static String signature(ItemStack stack) {
-            try {
-                if (stack == null || stack.isEmpty()) return "";
+            if (stack == null || stack.isEmpty()) return "";
 
-                String name = (stack.getItem() != null && stack.getItem().getRegistryName() != null)
-                    ? stack.getItem().getRegistryName().toString() : "";
+            String name = (stack.getItem() != null && stack.getItem().getRegistryName() != null)
+                ? stack.getItem().getRegistryName().toString() : "";
 
-                String nbt = (stack.hasTagCompound() && stack.getTagCompound() != null)
-                    ? stack.getTagCompound().toString() : "";
+            String nbt = (stack.hasTagCompound() && stack.getTagCompound() != null)
+                ? stack.getTagCompound().toString() : "";
 
-                return name + "@" + stack.getCount() + "#" + nbt;
-            } catch (Throwable t) {
-                return "";
-            }
+            return name + "@" + stack.getCount() + "#" + nbt;
         }
 
         private static LinkedHashMap<String, Object> stackInfo(ItemStack stack) {
             LinkedHashMap<String, Object> info = new LinkedHashMap<>();
-            try {
-                if (stack != null && !stack.isEmpty()) {
-                    if (stack.getItem() != null && stack.getItem().getRegistryName() != null) {
-                        info.put("name", stack.getItem().getRegistryName().toString());
-                    }
 
-                    info.put("count", stack.getCount());
-
-                    if (stack.hasTagCompound() && stack.getTagCompound() != null) {
-                        info.put("label", stack.getDisplayName());
-                        info.put("nbt", stack.getTagCompound().toString());
-                    }
+            if (stack != null && !stack.isEmpty()) {
+                if (stack.getItem() != null && stack.getItem().getRegistryName() != null) {
+                    info.put("name", stack.getItem().getRegistryName().toString());
                 }
-            } catch (Throwable ignored) {}
+
+                info.put("count", stack.getCount());
+
+                if (stack.hasTagCompound() && stack.getTagCompound() != null) {
+                    info.put("label", stack.getDisplayName());
+                    info.put("nbt", stack.getTagCompound().toString());
+                }
+            }
+
             return info;
         }
 
@@ -209,25 +191,23 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
 
         // Return null if OK, otherwise an error reason string
         private String checkPreconditionsBeforeSelect() {
-            try {
-                ItemStack in1 = tile.getStackInSlot(0);
-                ItemStack in2 = tile.getStackInSlot(1);
-                ItemStack lab = tile.getStackInSlot(3);
-                ItemStack out = tile.getStackInSlot(2);
+            ItemStack in1 = tile.getStackInSlot(0);
+            ItemStack in2 = tile.getStackInSlot(1);
+            ItemStack lab = tile.getStackInSlot(3);
+            ItemStack out = tile.getStackInSlot(2);
 
-                if (in1 == null || in1.isEmpty()) return "missing parent 1";
-                if (in2 == null || in2.isEmpty()) return "missing parent 2";
-                if (lab == null || lab.isEmpty()) return "missing labware";
-                if (out != null && !out.isEmpty()) return "output full";
-            } catch (Throwable t) {
-                return t.toString();
-            }
+            if (in1 == null || in1.isEmpty()) return "missing parent 1";
+            if (in2 == null || in2.isEmpty()) return "missing parent 2";
+            if (lab == null || lab.isEmpty()) return "missing labware";
+            if (out != null && !out.isEmpty()) return "output full";
+
             return null;
         }
 
         @Callback(doc = "function():table -- Returns slot indices for generic item transfer: { in1:number, in2:number, labware:number, output:number, selectors:number[] }")
         public Object[] listSlots(Context ctx, Arguments args) {
             LinkedHashMap<String, Object> slots = new LinkedHashMap<>();
+
             slots.put("in1", 0);
             slots.put("in2", 1);
             slots.put("labware", 3);
@@ -239,255 +219,202 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
 
         @Callback(doc = "function():number -- Returns current work progress (0..1).")
         public Object[] getProgress(Context ctx, Arguments args) {
-            try {
-                // TileWorker provides getProgress in [0..1]
-                return new Object[]{ tile.getProgress() };
-            } catch (Throwable t) {
-                return new Object[]{ 0.0 };
-            }
+            // TileWorker provides getProgress in [0..1]
+            return new Object[]{ tile.getProgress() };
         }
 
         @Callback(doc = "function():boolean -- Returns true if all conditions to start are currently satisfied.")
         public Object[] canStart(Context ctx, Arguments args) {
-            try {
-                return new Object[]{ tile.canStart() };
-            } catch (Throwable t) {
-                return new Object[]{ false };
-            }
+            return new Object[]{ tile.canStart() };
         }
 
         @Callback(doc = "function(ticks:number):boolean -- Set how often signals are emitted (every N ticks, min 1). Lower = more responsive, higher = less overhead.")
         public Object[] setSignalInterval(Context ctx, Arguments args) {
-            try {
-                int n = Math.max(1, args.checkInteger(0));
-                signalInterval = MutatronLogic.clampSignalInterval(n, Config.advMutatronSignalIntervalMax);
+            int n = Math.max(1, args.checkInteger(0));
+            signalInterval = MutatronLogic.clampSignalInterval(n, Config.advMutatronSignalIntervalMax);
 
-                return new Object[]{ true };
-            } catch (Throwable t) {
-                return new Object[]{ false };
-            }
+            return new Object[]{ true };
         }
 
         @Callback(doc = "function(seconds:number):boolean -- Set the cooperative wait step used by blocking operations (default 0.2s, range 0.05..5). Lower = more responsive, higher = less overhead.")
         public Object[] setWaitInterval(Context ctx, Arguments args) {
-            try {
-                double s = args.checkDouble(0);
-                waitStepSeconds = MutatronLogic.clampWaitStep(s);
+            waitStepSeconds = MutatronLogic.clampWaitStep(args.checkDouble(0));
 
-                return new Object[]{ true };
-            } catch (Throwable t) {
-                return new Object[]{ false };
-            }
+            return new Object[]{ true };
         }
 
         @Callback(doc = "function():boolean -- Reload defaults from the mod config and apply to this component instance.")
         public Object[] applyDefaultTuning(Context ctx, Arguments args) {
-            try {
-                Config.syncFromFile();
+            Config.syncFromFile();
 
-                signalInterval = MutatronLogic.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
-                waitStepSeconds = MutatronLogic.clampWaitStep(Config.advMutatronWaitInterval);
-                eventsEnabled = Config.advMutatronDefaultEventsEnabled;
+            signalInterval = MutatronLogic.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
+            waitStepSeconds = MutatronLogic.clampWaitStep(Config.advMutatronWaitInterval);
+            eventsEnabled = Config.advMutatronDefaultEventsEnabled;
 
-                return new Object[]{ true };
-            } catch (Throwable t) {
-                return new Object[]{ false };
-            }
+            return new Object[]{ true };
         }
 
         @Callback(doc = "function():table -- Returns mutagen tank info: { amount:number, capacity:number, fluid?:string }.")
         public Object[] getTank(Context ctx, Arguments args) {
-            try {
-                LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
 
-                IFluidHandler handler = tile.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, null);
-                if (handler != null) {
-                    IFluidTankProperties[] props = handler.getTankProperties();
-                    if (props != null && props.length > 0 && props[0] != null) {
-                        IFluidTankProperties p = props[0];
-                        FluidStack fs = p.getContents();
+            IFluidHandler handler = tile.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, null);
+            if (handler != null) {
+                IFluidTankProperties[] props = handler.getTankProperties();
+                if (props != null && props.length > 0 && props[0] != null) {
+                    IFluidTankProperties p = props[0];
+                    FluidStack fs = p.getContents();
 
-                        out.put("capacity", p.getCapacity());
-                        out.put("amount", fs != null ? fs.amount : 0);
-                        if (fs != null && fs.getFluid() != null && fs.getFluid().getName() != null) {
-                            out.put("fluid", fs.getFluid().getName());
-                        }
+                    out.put("capacity", p.getCapacity());
+                    out.put("amount", fs != null ? fs.amount : 0);
+                    if (fs != null && fs.getFluid() != null && fs.getFluid().getName() != null) {
+                        out.put("fluid", fs.getFluid().getName());
                     }
                 }
-
-                return new Object[]{ out };
-            } catch (Throwable t) {
-                return new Object[]{ new LinkedHashMap<>() };
             }
+
+            return new Object[]{ out };
         }
 
         @Callback(doc = "function():table|nil -- Returns the current output stack from slot 2 as {name,label?,nbt?,count}, or nil if empty.")
         public Object[] getOutput(Context ctx, Arguments args) {
-            try {
-                ItemStack out = tile.getStackInSlot(2);
-                if (out == null || out.isEmpty()) return new Object[]{ null };
+            ItemStack out = tile.getStackInSlot(2);
+            if (out == null || out.isEmpty()) return new Object[]{ null };
 
-                return new Object[]{ stackInfo(out) };
-            } catch (Throwable t) {
-                return new Object[]{ null };
-            }
+            return new Object[]{ stackInfo(out) };
         }
 
         @Callback(doc = "function():table -- Returns a table of possible mutations keyed by 1..N with fields {index,key,name,label?,nbt?}.")
         public Object[] listMutations(Context ctx, Arguments args) {
-            try {
-                Map<Integer, ItemStack> map = getPossibleMutations();
-                LinkedHashMap<Integer, Object> out = new LinkedHashMap<>();
+            Map<Integer, ItemStack> map = getPossibleMutations();
+            LinkedHashMap<Integer, Object> out = new LinkedHashMap<>();
 
-                if (map != null) {
-                    int i = 0;
+            if (map != null) {
+                int i = 0;
 
-                    for (Map.Entry<Integer, ItemStack> e : map.entrySet()) {
-                        ItemStack stack = e.getValue();
-                        if (stack == null || stack.isEmpty()) continue;
+                for (Map.Entry<Integer, ItemStack> e : map.entrySet()) {
+                    ItemStack stack = e.getValue();
+                    if (stack == null || stack.isEmpty()) continue;
 
-                        i++;
+                    i++;
 
-                        LinkedHashMap<String, Object> info = new LinkedHashMap<>();
-                        info.put("index", i);
-                        info.put("key", e.getKey());
+                    LinkedHashMap<String, Object> info = new LinkedHashMap<>();
+                    info.put("index", i);
+                    info.put("key", e.getKey());
 
-                        try {
-                            Item item = stack.getItem();
-                            if (item != null && item.getRegistryName() != null) {
-                                info.put("name", item.getRegistryName().toString());
-                            }
-
-                            // Avoid calling getDisplayName() on genetic items with no genome NBT, which causes Forestry to log spam.
-                            if (stack.hasTagCompound() && stack.getTagCompound() != null) {
-                                info.put("label", stack.getDisplayName());
-                                info.put("nbt", stack.getTagCompound().toString());
-                            }
-                        } catch (Throwable ignored) {}
-
-                        out.put(i, info);
+                    Item item = stack.getItem();
+                    if (item != null && item.getRegistryName() != null) {
+                        info.put("name", item.getRegistryName().toString());
                     }
-                }
 
-                return new Object[]{ out };
-            } catch (Throwable t) {
-                return new Object[]{ new LinkedHashMap<>() };
+                    // Avoid calling getDisplayName() on genetic items with no genome NBT, which causes Forestry to log spam.
+                    if (stack.hasTagCompound() && stack.getTagCompound() != null) {
+                        info.put("label", stack.getDisplayName());
+                        info.put("nbt", stack.getTagCompound().toString());
+                    }
+
+                    out.put(i, info);
+                }
             }
+
+            return new Object[]{ out };
         }
 
         @Callback(doc = "function(n:number):boolean,string? -- Select a mutation by 1-based index (from listMutations) or by raw key (slot index), and start the process if possible.")
         public Object[] setMutation(Context ctx, Arguments args) {
-            try {
-                int n = args.checkInteger(0);
+            int n = args.checkInteger(0);
 
-                Map<Integer, ItemStack> map = getPossibleMutations();
-                if (map == null || map.isEmpty()) {
-                    return new Object[]{ false, "no mutations available" };
-                }
+            Map<Integer, ItemStack> map = getPossibleMutations();
+            if (map == null || map.isEmpty()) {
+                return new Object[]{ false, "no mutations available" };
+            }
 
-                int size = map.size();
-                int keyToUse = n;
-                if (n >= 1 && n <= size) {
-                    int i = 0;
-                    for (Integer k : map.keySet()) {
-                        i++;
+            int size = map.size();
+            int keyToUse = n;
+            if (n >= 1 && n <= size) {
+                int i = 0;
+                for (Integer k : map.keySet()) {
+                    i++;
 
-                        if (i == n) {
-                            keyToUse = k;
-                            break;
-                        }
+                    if (i == n) {
+                        keyToUse = k;
+                        break;
                     }
                 }
-
-                if (!map.containsKey(keyToUse)) return new Object[]{ false, "invalid index/key" };
-                setMutation(keyToUse);
-
-                return new Object[]{ true };
-            } catch (Throwable t) {
-                return new Object[]{ false, t.toString() };
             }
+
+            if (!map.containsKey(keyToUse)) return new Object[]{ false, "invalid index/key" };
+            setMutation(keyToUse);
+
+            return new Object[]{ true };
         }
 
         @Callback(doc = "function():boolean -- Try to start processing immediately; returns true if started by this call specifically, false otherwise.")
         public Object[] start(Context ctx, Arguments args) {
-            try {
-                boolean started = tile.tryStart();
-
-                return new Object[]{ started };
-            } catch (Throwable t) {
-                return new Object[]{ false };
-            }
+            return new Object[]{ tile.tryStart() };
         }
 
         @Callback(doc = "function(n:number[, timeout:number=60]):boolean,table|string? -- Select mutation (1-based index from listMutations or raw slot key), wait until finished without freezing, then return true and the output stack {name,label?,nbt?,count}; on failure returns false,reason.")
         public Object[] selectAndProduce(Context ctx, Arguments args) {
-            try {
-                int n = args.checkInteger(0);
-                double timeoutSec = args.count() > 1 ? Math.max(0, args.checkDouble(1)) : 60.0;
+            int n = args.checkInteger(0);
+            double timeoutSec = args.count() > 1 ? Math.max(0, args.checkDouble(1)) : 60.0;
 
-                // Resolve selection key
-                Map<Integer, ItemStack> map = getPossibleMutations();
-                if (map == null || map.isEmpty()) return new Object[]{ false, "no mutations available" };
+            // Resolve selection key
+            Map<Integer, ItemStack> map = getPossibleMutations();
+            if (map == null || map.isEmpty()) return new Object[]{ false, "no mutations available" };
 
-                Integer keyToUse = resolveSelectionKey(n, map);
-                if (keyToUse == null) return new Object[]{ false, "invalid index/key" };
+            Integer keyToUse = resolveSelectionKey(n, map);
+            if (keyToUse == null) return new Object[]{ false, "invalid index/key" };
 
-                // Preconditions (don't call canStart; selection may be required first)
-                String why = checkPreconditionsBeforeSelect();
-                if (why != null) return new Object[]{ false, why };
+            // Preconditions (don't call canStart; selection may be required first)
+            String why = checkPreconditionsBeforeSelect();
+            if (why != null) return new Object[]{ false, why };
 
-                // Set selection; some builds start automatically upon selection
-                setMutation(keyToUse);
-                tile.tryStart();
+            // Set selection; some builds start automatically upon selection
+            setMutation(keyToUse);
+            tile.tryStart();
 
-                // Wait cooperatively until processing starts (if not immediate) and then until it finishes
-                long deadline = System.currentTimeMillis() + (long) (timeoutSec * 1000L);
+            // Wait cooperatively until processing starts (if not immediate) and then until it finishes
+            long deadline = System.currentTimeMillis() + (long) (timeoutSec * 1000L);
 
-                // Wait for start
-                while (!tile.isWorking()) {
-                    if (System.currentTimeMillis() > deadline) return new Object[]{ false, "timeout (not started)" };
+            // Wait for start
+            while (!tile.isWorking()) {
+                if (System.currentTimeMillis() > deadline) return new Object[]{ false, "timeout (not started)" };
 
-                    ctx.pause(waitStepSeconds);
-                }
-
-                // Wait for finish
-                while (tile.isWorking()) {
-                    if (System.currentTimeMillis() > deadline) return new Object[]{ false, "timeout" };
-
-                    ctx.pause(waitStepSeconds);
-                }
-
-                // Return produced item (if any) from output slot 2
-                ItemStack out = tile.getStackInSlot(2);
-                if (out == null || out.isEmpty()) return new Object[]{ false, "no output" };
-
-                return new Object[]{ true, stackInfo(out) };
-            } catch (Throwable t) {
-                return new Object[]{ false, t.toString() };
+                ctx.pause(waitStepSeconds);
             }
+
+            // Wait for finish
+            while (tile.isWorking()) {
+                if (System.currentTimeMillis() > deadline) return new Object[]{ false, "timeout" };
+
+                ctx.pause(waitStepSeconds);
+            }
+
+            // Return produced item (if any) from output slot 2
+            ItemStack out = tile.getStackInSlot(2);
+            if (out == null || out.isEmpty()) return new Object[]{ false, "no output" };
+
+            return new Object[]{ true, stackInfo(out) };
         }
 
         @Callback(doc = "function(n:number):boolean,string? -- Select mutation (1-based index from listMutations or raw slot key) and return immediately; use events advmutatron_started/finished/output to react.")
         public Object[] selectAndProduceAsync(Context ctx, Arguments args) {
-            try {
-                int n = args.checkInteger(0);
+            int n = args.checkInteger(0);
 
-                Map<Integer, ItemStack> map = getPossibleMutations();
-                if (map == null || map.isEmpty()) return new Object[]{ false, "no mutations available" };
+            Map<Integer, ItemStack> map = getPossibleMutations();
+            if (map == null || map.isEmpty()) return new Object[]{ false, "no mutations available" };
 
-                Integer keyToUse = resolveSelectionKey(n, map);
-                if (keyToUse == null) return new Object[]{ false, "invalid index/key" };
+            Integer keyToUse = resolveSelectionKey(n, map);
+            if (keyToUse == null) return new Object[]{ false, "invalid index/key" };
 
-                String why = checkPreconditionsBeforeSelect();
-                if (why != null) return new Object[]{ false, why };
+            String why = checkPreconditionsBeforeSelect();
+            if (why != null) return new Object[]{ false, why };
 
-                setMutation(keyToUse);
-                tile.tryStart();
+            setMutation(keyToUse);
+            tile.tryStart();
 
-                return new Object[]{ true };
-            } catch (Throwable t) {
-                return new Object[]{ false, t.toString() };
-            }
+            return new Object[]{ true };
         }
     }
 }

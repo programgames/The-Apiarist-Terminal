@@ -17,6 +17,7 @@ public class GuiModConfig extends GuiConfig {
 
     private static List<IConfigElement> getElements() {
         List<IConfigElement> list = new ArrayList<>();
+
         if (Config.config != null) {
             // Add categories themselves so they show as top-level pages
             list.add(new ConfigElement(Config.config.getCategory(Config.CAT_GENERAL)));

@@ -52,6 +52,7 @@ public class OcGendustryCommand extends CommandBase {
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) {
         if (!(sender instanceof EntityPlayerMP)) return;
+
         EntityPlayerMP player = (EntityPlayerMP) sender;
         World world = player.world;
 
@@ -74,6 +75,7 @@ public class OcGendustryCommand extends CommandBase {
         // Locate a nearby Advanced Mutatron
         int r = Config.integrationSearchRadius;
         BlockPos center = player.getPosition();
+
         TileMutatronAdv found = null;
         for (int dx = -r; dx <= r && found == null; dx++) {
             for (int dy = -r; dy <= r && found == null; dy++) {
@@ -81,9 +83,16 @@ public class OcGendustryCommand extends CommandBase {
                     BlockPos p = center.add(dx, dy, dz);
                     if (world.isBlockLoaded(p) && world.getTileEntity(p) instanceof TileMutatronAdv) {
                         found = (TileMutatronAdv) world.getTileEntity(p);
+                        break;
                     }
+
+                    if (found != null) break;
                 }
+
+                if (found != null) break;
             }
+
+            if (found != null) break;
         }
 
         if (found == null) {
@@ -256,31 +265,29 @@ public class OcGendustryCommand extends CommandBase {
             sideOut.put("{{DST}}", "sides.front");
 
             // Try to place an Industrial Apiary adjacent to the transposer (left/right)
-            try {
-                Block apiary = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("gendustry", "industrial_apiary"));
-                if (apiary != null) {
-                    // Compute left/right relative to the transposer's front
-                    EnumFacing left = transFront.rotateYCCW();
-                    EnumFacing right = transFront.rotateY();
+            Block apiary = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("gendustry", "industrial_apiary"));
+            if (apiary != null) {
+                // Compute left/right relative to the transposer's front
+                EnumFacing left = transFront.rotateYCCW();
+                EnumFacing right = transFront.rotateY();
 
-                    BlockPos apiaryLeft = tpPos.offset(left);
-                    BlockPos apiaryRight = tpPos.offset(right);
+                BlockPos apiaryLeft = tpPos.offset(left);
+                BlockPos apiaryRight = tpPos.offset(right);
 
-                    // If chest used LEFT, try RIGHT for apiary first; if used RIGHT, try LEFT first
-                    boolean chestUsedLeft = (chosenIdx == 1);
-                    boolean chestUsedRight = (chosenIdx == 2);
+                // If chest used LEFT, try RIGHT for apiary first; if used RIGHT, try LEFT first
+                boolean chestUsedLeft = (chosenIdx == 1);
+                boolean chestUsedRight = (chosenIdx == 2);
 
-                    if (!chestUsedLeft && isPlaceable(world, apiaryLeft)) {
-                        clearIfReplaceable(world, apiaryLeft);
-                        world.setBlockState(apiaryLeft, apiary.getDefaultState(), 3);
-                        sideOut.put("{{APIARY}}", "sides.left");
-                    } else if (!chestUsedRight && isPlaceable(world, apiaryRight)) {
-                        clearIfReplaceable(world, apiaryRight);
-                        world.setBlockState(apiaryRight, apiary.getDefaultState(), 3);
-                        sideOut.put("{{APIARY}}", "sides.right");
-                    }
+                if (!chestUsedLeft && isPlaceable(world, apiaryLeft)) {
+                    clearIfReplaceable(world, apiaryLeft);
+                    world.setBlockState(apiaryLeft, apiary.getDefaultState(), 3);
+                    sideOut.put("{{APIARY}}", "sides.left");
+                } else if (!chestUsedRight && isPlaceable(world, apiaryRight)) {
+                    clearIfReplaceable(world, apiaryRight);
+                    world.setBlockState(apiaryRight, apiary.getDefaultState(), 3);
+                    sideOut.put("{{APIARY}}", "sides.right");
                 }
-            } catch (Throwable ignored) {}
+            }
 
             return chosenChest;
         }
@@ -291,23 +298,19 @@ public class OcGendustryCommand extends CommandBase {
         if (world.isAirBlock(pos)) return true;
         IBlockState state = world.getBlockState(pos);
         Block b = state.getBlock();
-        try {
-            return b.isReplaceable(world, pos);
-        } catch (Throwable t) {
-            return false;
-        }
+
+        return b.isReplaceable(world, pos);
     }
 
     private void clearIfReplaceable(World world, BlockPos pos) {
         if (!world.isAirBlock(pos)) {
             IBlockState state = world.getBlockState(pos);
             Block b = state.getBlock();
-            try {
-                if (b.isReplaceable(world, pos)) {
-                    // remove without drops; this runs under creative check earlier
-                    world.setBlockToAir(pos);
-                }
-            } catch (Throwable ignored) {}
+
+            if (b.isReplaceable(world, pos)) {
+                // remove without drops; this runs under creative check earlier
+                world.setBlockToAir(pos);
+            }
         }
     }
 
@@ -330,70 +333,67 @@ public class OcGendustryCommand extends CommandBase {
 
         IInventory inv = (IInventory) te;
         int inserted = 0;
-        try {
-            // Get bee root
-            ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
 
-            if (!(root instanceof IBeeRoot)) return 0;
-            IBeeRoot beeRoot = (IBeeRoot) root;
+        // Get bee root
+        ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
 
-            // Helper to create stacks
-            java.util.function.BiFunction<String, EnumBeeType, ItemStack> make = (speciesLower, type) -> {
-                try {
-                    String keyName = speciesLower.substring(0,1).toUpperCase() + speciesLower.substring(1);
-                    String uid = "forestry.species" + keyName;
-                    IAllele allele = AlleleManager.alleleRegistry.getAllele(uid);
-                    if (!(allele instanceof IAlleleBeeSpecies)) return ItemStack.EMPTY;
+        if (!(root instanceof IBeeRoot)) return 0;
+        IBeeRoot beeRoot = (IBeeRoot) root;
 
-                    IAlleleBeeSpecies sp = (IAlleleBeeSpecies) allele;
-                    IAllele[] template = beeRoot.getTemplate(sp);
-                    if (template == null) return ItemStack.EMPTY;
+        // Helper to create stacks
+        java.util.function.BiFunction<String, EnumBeeType, ItemStack> make = (speciesLower, type) -> {
+            String keyName = speciesLower.substring(0,1).toUpperCase() + speciesLower.substring(1);
+            String uid = "forestry.species" + keyName;
+            IAllele allele = AlleleManager.alleleRegistry.getAllele(uid);
+            if (!(allele instanceof IAlleleBeeSpecies)) return ItemStack.EMPTY;
 
-                    IBeeGenome genome = beeRoot.templateAsGenome(template);
-                    IBee bee = beeRoot.getBee(genome);
-                    switch (type) {
-                        case PRINCESS:
-                            return beeRoot.getMemberStack(bee, EnumBeeType.PRINCESS);
-                        case DRONE:
-                            return beeRoot.getMemberStack(bee, EnumBeeType.DRONE);
-                        case QUEEN:
-                            return beeRoot.getMemberStack(bee, EnumBeeType.QUEEN);
-                        default:
-                            return ItemStack.EMPTY;
-                    }
-                } catch (Throwable t) {
+            IAlleleBeeSpecies sp = (IAlleleBeeSpecies) allele;
+            IAllele[] template = beeRoot.getTemplate(sp);
+            if (template == null) return ItemStack.EMPTY;
+
+            IBeeGenome genome = beeRoot.templateAsGenome(template);
+            IBee bee = beeRoot.getBee(genome);
+            switch (type) {
+                case PRINCESS:
+                    return beeRoot.getMemberStack(bee, EnumBeeType.PRINCESS);
+                case DRONE:
+                    return beeRoot.getMemberStack(bee, EnumBeeType.DRONE);
+                case QUEEN:
+                    return beeRoot.getMemberStack(bee, EnumBeeType.QUEEN);
+                default:
                     return ItemStack.EMPTY;
-                }
-            };
-
-            // Parents list
-            String[][] pairs = new String[][]{
-                {"noble", "majestic"},
-                {"tropical", "exotic"},
-                {"meadows", "diligent"},
-                {"meadows", "common"},
-                {"diligent", "unweary"},
-                {"wintry", "industrious"}
-            };
-
-            // Insert some labware if present
-            Block labwareItemBlock = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("gendustry", "labware"));
-            net.minecraft.item.Item labwareItem = ForgeRegistries.ITEMS.getValue(new ResourceLocation("gendustry", "labware"));
-            if (labwareItem != null) {
-                ItemStack lab = new ItemStack(labwareItem, 32);
-                inserted += putNext(inv, lab);
             }
+        };
 
-            for (String[] pp : pairs) {
-                ItemStack princess = make.apply(pp[0], EnumBeeType.PRINCESS);
-                ItemStack drone = make.apply(pp[1], EnumBeeType.DRONE);
-                if (!princess.isEmpty()) inserted += putNext(inv, princess);
-                if (!drone.isEmpty()) {
-                    drone.setCount(4);
-                    inserted += putNext(inv, drone);
-                }
+        // Parents list
+        String[][] pairs = new String[][]{
+            {"noble", "majestic"},
+            {"tropical", "exotic"},
+            {"meadows", "diligent"},
+            {"meadows", "common"},
+            {"diligent", "unweary"},
+            {"wintry", "industrious"}
+        };
+
+        // Insert some labware if present
+        Block labwareItemBlock = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("gendustry", "labware"));
+        net.minecraft.item.Item labwareItem = ForgeRegistries.ITEMS.getValue(new ResourceLocation("gendustry", "labware"));
+        if (labwareItem != null) {
+            ItemStack lab = new ItemStack(labwareItem, 32);
+            inserted += putNext(inv, lab);
+        }
+
+        for (String[] pp : pairs) {
+            ItemStack princess = make.apply(pp[0], EnumBeeType.PRINCESS);
+            ItemStack drone = make.apply(pp[1], EnumBeeType.DRONE);
+
+            if (!princess.isEmpty()) inserted += putNext(inv, princess);
+
+            if (!drone.isEmpty()) {
+                drone.setCount(4);
+                inserted += putNext(inv, drone);
             }
-        } catch (Throwable ignored) {}
+        }
 
         return inserted;
     }
