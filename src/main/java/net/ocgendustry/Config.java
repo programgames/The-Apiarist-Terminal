@@ -1,14 +1,17 @@
 package net.ocgendustry;
 
+import java.io.File;
+
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-import java.io.File;
+import net.ocgendustry.Tags;
 
-@Mod.EventBusSubscriber(modid = OCGendustryMod.MODID)
+
+@Mod.EventBusSubscriber(modid = Tags.MODID)
 public final class Config {
     public static Configuration config;
 
@@ -41,7 +44,7 @@ public final class Config {
     public static boolean enableEvents = true;
 
     public static void init(FMLPreInitializationEvent event) {
-        File cfgFile = new File(event.getModConfigurationDirectory(), OCGendustryMod.MODID + ".cfg");
+        File cfgFile = new File(event.getModConfigurationDirectory(), Tags.MODID + ".cfg");
         config = new Configuration(cfgFile);
         syncFromFile();
     }
@@ -154,7 +157,7 @@ public final class Config {
     // Re-sync values when changed via the Forge config GUI
     @SubscribeEvent
     public static void onConfigChanged(ConfigChangedEvent.OnConfigChangedEvent event) {
-        if (OCGendustryMod.MODID.equals(event.getModID())) {
+        if (Tags.MODID.equals(event.getModID())) {
             // Re-sync from the GUI-modified Configuration without reloading defaults from disk
             syncFromGui();
         }

@@ -16,12 +16,12 @@ OpenComputers drivers that expose Gendustry machines as OC components.
 2) Place the jar in your `mods/` folder alongside OpenComputers and Gendustry.
 3) Start the game. If dependencies are missing or incompatible, Forge will report it during load.
 
-Notes
+### Notes
 - Components:
   - Advanced Mutatron: `advmutatron`
   - Industrial Apiary: `industrial_apiary`
 - Attach an Adapter/Cable to the machine.
-- Logging tag: `[ApiaristTerminal]`. Errors will mention driver names for easier troubleshooting.
+- Errors will mention driver names for easier troubleshooting.
 
 ## Component API docs
 Full callback reference can be found in per-component docs, along with quick start and examples:
@@ -51,6 +51,21 @@ Notes:
 - Devices initialize their per-device flag from the config default on create and when calling `applyDefaultTuning()`.
 - When `general.enableEvents=false`, no device will emit events regardless of its per-device flag.
 
+## Building from source
+- Use JDK 25 to run Gradle.
+- Gradle Wrapper is included, so no standalone Gradle installation is needed.
+- The build provisions the legacy Java toolchains it still needs automatically.
+
+```bash
+# Windows
+gradlew.bat build
+
+# Linux / macOS / WSL
+./gradlew build
+```
+
+The first build can take a while because Gradle has to download Minecraft, Forge, and toolchain artifacts.
+
 ## Extending support
 If you want to add drivers for more Gendustry machines, see the development guide for structure and guidelines.
 
@@ -59,18 +74,12 @@ If you want to add drivers for more Gendustry machines, see the development guid
 ## Contributing
 Contributions are welcome! For small fixes or features:
 - Open an issue or PR describing the change.
-- Follow the project structure in `DEVELOPMENT.md` and target Java 8 / ForgeGradle 2.x.
-- Make sure the project builds locally before submitting:
-
-```bash
-# From the repo root (uses Gradle Wrapper - no Gradle installation needed)
-./gradlew setupDecompWorkspace
-./gradlew build
-```
+- Follow the project structure in `DEVELOPMENT.md`.
+- Make sure the project builds locally before submitting.
 
 ## License
-- This module: MIT (see `LICENSE`).
-- Gendustry: WTFPL.
+- This module: [MIT](LICENSE).
+- Gendustry: [WTFPL](http://www.wtfpl.net/).
 - OpenComputers: MIT-like.
 
 ## Changelog

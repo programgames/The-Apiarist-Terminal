@@ -24,16 +24,20 @@ A clear and concise description of what you expected to happen.
 ## Screenshots
 If applicable, add screenshots to help explain your problem.
 
+## Checklist
+- [ ] I tested and can reproduce the issue in the latest version of the mod (from Curseforge or GitHub). I guarantee the version mentioned in Environment is the latest one.
+- [ ] I searched for existing issues that might be related.
+- [ ] If additional modifications have been made to the mod list, I have provided the exact sources (e.g. github repo for an unofficial build of a mod).
+
 ## Environment
 - The Apiarist Terminal version:
+- OpenComputers:
+- Gendustry:
 - Minecraft: 1.12.2
 - Forge:
 - Java: 8u__
-- OpenComputers:
-- Gendustry:
-- bdlib:
 - OS: Windows/Linux/macOS (version)
 - Modpack (if any):
 
 ## Additional context
-Add any other context about the problem here.
+Add any other context about the problem here, like any additional mod or configuration that might be relevant.

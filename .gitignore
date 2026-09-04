@@ -1,13 +1,17 @@
+# Misc
+*.zip
+TODO.md
+*.patch
+.venv
+__pycache__/
+
 # Gradle
 .gradle/
 build/
 out/
 bin/
 
-# Gradle Wrapper - keep the wrapper jar
-!gradle/wrapper/gradle-wrapper.jar
-
-# ForgeGradle
+# ForgeGradle / RetroFuturaGradle
 run/
 logs/
 crash-reports/

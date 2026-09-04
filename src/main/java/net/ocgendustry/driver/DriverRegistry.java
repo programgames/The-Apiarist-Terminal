@@ -1,7 +1,9 @@
 package net.ocgendustry.driver;
 
 import li.cil.oc.api.Driver;
-import net.ocgendustry.Log;
+
+import net.ocgendustry.OCGendustry;
+
 
 public final class DriverRegistry {
     private DriverRegistry() {}
@@ -9,7 +11,7 @@ public final class DriverRegistry {
 
     public static void registerAll() {
         if (registered) {
-            Log.info("Driver registration skipped (already registered)");
+            OCGendustry.LOGGER.info("Driver registration skipped (already registered)");
             return;
         }
 
@@ -18,6 +20,6 @@ public final class DriverRegistry {
         Driver.add(new DriverApiary());
         registered = true;
 
-        Log.info("Registered OpenComputers drivers: DriverAdvMutatron, DriverApiary");
+        OCGendustry.LOGGER.info("Registered OpenComputers drivers: DriverAdvMutatron, DriverApiary");
     }
 }

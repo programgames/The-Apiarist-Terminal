@@ -1,20 +1,13 @@
-[
-  {
-    "modid": "ocgendustry",
-    "name": "The Apiarist Terminal",
-    "description": "OpenComputers drivers for Gendustry machines (e.g., Advanced Mutatron component: advmutatron).",
-    "version": "${version}",
-    "mcversion": "${mcversion}",
-    "url": "",
-    "updateUrl": "",
-    "authorList": ["contributors"],
-    "credits": "OpenComputers & Gendustry authors",
-    "logoFile": "",
+[{
+    "modid": "${mod_id}",
+    "name": "${mod_name}",
+    "version": "${mod_version}",
+    "mcversion": "1.12.2",
+    "description": "${mod_description}",
+    "authorList": ["${mod_authors}"],
+    "credits": "${mod_credits}",
+    "url": "${mod_url}",
+    "logoFile": "${mod_logo_path}",
     "screenshots": [],
-    "dependencies": [
-      "required-after:forge",
-      "required-after:opencomputers",
-      "required-after:gendustry"
-    ]
-  }
-]
+    "dependencies": ["opencomputers", "gendustry"]
+}]

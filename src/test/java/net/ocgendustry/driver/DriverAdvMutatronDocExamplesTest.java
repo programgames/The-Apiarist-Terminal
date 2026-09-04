@@ -1,7 +1,7 @@
 package net.ocgendustry.driver;
 
-import org.junit.Test;
-import static org.assertj.core.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
 
 /**
  * Doc-sanity tests: ensure callback docs include certain phrases/features.
@@ -19,7 +19,7 @@ public class DriverAdvMutatronDocExamplesTest {
                 .getDeclaredMethod("setWaitInterval", li.cil.oc.api.machine.Context.class, li.cil.oc.api.machine.Arguments.class)
                 .getAnnotation(li.cil.oc.api.machine.Callback.class).doc();
 
-        assertThat(setSignalDoc).contains("signals");
-        assertThat(setWaitDoc).contains("wait");
+        Assertions.assertTrue(setSignalDoc.contains("signals"));
+        Assertions.assertTrue(setWaitDoc.contains("wait"));
     }
 }

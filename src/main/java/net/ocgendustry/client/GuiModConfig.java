@@ -1,18 +1,21 @@
 package net.ocgendustry.client;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraftforge.common.config.ConfigElement;
 import net.minecraftforge.fml.client.config.GuiConfig;
 import net.minecraftforge.fml.client.config.IConfigElement;
-import net.ocgendustry.Config;
-import net.ocgendustry.OCGendustryMod;
 
-import java.util.ArrayList;
-import java.util.List;
+
+import net.ocgendustry.Config;
+import net.ocgendustry.Tags;
+
 
 public class GuiModConfig extends GuiConfig {
     public GuiModConfig(GuiScreen parent) {
-        super(parent, getElements(), OCGendustryMod.MODID, false, false, "The Apiarist Terminal Config");
+        super(parent, getElements(), Tags.MODID, false, false, "The Apiarist Terminal Config");
     }
 
     private static List<IConfigElement> getElements() {

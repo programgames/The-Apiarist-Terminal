@@ -1,11 +1,11 @@
 package net.ocgendustry.client;
 
+import java.util.Set;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraftforge.fml.client.IModGuiFactory;
-import net.ocgendustry.OCGendustryMod;
 
-import java.util.Set;
 
 public class GuiFactory implements IModGuiFactory {
     @Override
@@ -20,5 +20,5 @@ public class GuiFactory implements IModGuiFactory {
     }
 
     @Override
-    public Set<RuntimeOptionCategoryElement> runtimeGuiCategories() { return null; }
+    public Set<RuntimeOptionCategoryElement> runtimeGuiCategories() {return null; }
 }
