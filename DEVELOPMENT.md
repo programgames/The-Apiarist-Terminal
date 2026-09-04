@@ -2,14 +2,25 @@
 
 This document is for developers and CI maintainers working on The Apiarist Terminal.
 
-- Game/Tooling target: Minecraft Forge 1.12.2, ForgeGradle 2.x, Java 8.
-- Primary goal: expose Gendustry machines to OpenComputers as components (currently `advmutatron`).
+- Game/Tooling target: Minecraft Forge 1.12.2, ForgeGradle 2.3, Gradle wrapper 4.10.3, Java 8.
+- Primary goal: expose Gendustry machines to OpenComputers as components
+  (currently `advmutatron` and `industrial_apiary`).
 
 ## Project layout
-- `src/main/java/net/ocgendustry/OCGendustryMod.java` — Mod entrypoint; hard requires OC + Gendustry and calls `DriverRegistry`.
+- `src/main/java/net/ocgendustry/OCGendustryMod.java` — Mod entrypoint; hard requires OC + Gendustry, loads `Config`, calls `DriverRegistry`, registers the server command.
+- `src/main/java/net/ocgendustry/Config.java` — Forge config (categories `general`, `advanced_mutatron`, `industrial_apiary`, `integration_test`).
+- `src/main/java/net/ocgendustry/Log.java` — Log4j wrapper adding the `[ApiaristTerminal]` tag.
 - `src/main/java/net/ocgendustry/driver/DriverRegistry.java` — Central place to register all drivers (add more here as you extend support).
 - `src/main/java/net/ocgendustry/driver/DriverAdvMutatron.java` — Driver for Advanced Mutatron (component: `advmutatron`).
+- `src/main/java/net/ocgendustry/driver/DriverApiary.java` — Read-only driver for Industrial Apiary (component: `industrial_apiary`).
+- `src/main/java/net/ocgendustry/util/` — Pure-Java helpers (`Tuning` clamps, `MutatronLogic` selection) kept free of MC types so they are unit-testable.
+- `src/main/java/net/ocgendustry/client/` — Forge config GUI (`GuiFactory`, `GuiModConfig`).
+- `src/main/java/net/ocgendustry/command/OcGendustryCommand.java` — Gated in-game test harness (`/ocgendustry test advmutatron [fresh|reuse|all]`).
 - `src/main/resources/mcmod.info` — Mod metadata (hard depends on OC + Gendustry).
+- `src/main/resources/META-INF/ocgendustry_at.cfg` — Access transformer referenced by the jar manifest (`FMLAT`); FML resolves it relative to `META-INF`.
+- `src/main/resources/ocgendustry/scripts/*.lua` — Reference OC programs written out by the test harness.
+- `src/test/java/` — JUnit 4 + AssertJ unit tests; no Minecraft bootstrap.
+- `docs/components/<component>.md` — Per-component callback reference.
 
 ## Prerequisites
 - JDK 8 on PATH (JAVA_HOME set to JDK 1.8).
@@ -62,6 +73,9 @@ ForgeGradle 2.x, Java 8. Uses Gradle Wrapper (no manual Gradle installation need
 
 # Build the mod
 ./gradlew build
+
+# Run the unit tests only (fast; no Minecraft bootstrap)
+./gradlew test
 ```
 
 On Windows, use `gradlew.bat` instead of `./gradlew`.
@@ -69,9 +83,17 @@ On Windows, use `gradlew.bat` instead of `./gradlew`.
 - Artifact output: `build/libs/apiarist-terminal-<version>.jar`.
 
 ## Extending to more Gendustry machines
-- Create a new `DriverXxx` class implementing `SidedBlock`, with an `Env` component implementing `SimpleComponent`.
+- Create a `DriverXxx extends DriverSidedTileEntity` with a nested
+  `public static final class Environment extends AbstractManagedEnvironment implements NamedBlock`.
+- Type strongly against the relevant Gendustry tile class (no reflection); return `priority() = 10`
+  so the driver wins over OpenComputers' generic energy/inventory drivers.
 - Register it in `DriverRegistry.registerAll()`.
-- Use strong typing to the relevant Gendustry Tile class (no reflection).
+- Document every `@Callback` with a `"function(arg:type):ret -- description"` doc string, and add a
+  `docs/components/<component>.md` page.
+- Gate event emission on `Config.enableEvents` (global) AND the per-device `eventsEnabled` flag, and
+  return that conjunction from `canUpdate()`.
+- Use `ctx.pause(waitStepSeconds)` for blocking helpers; never `Thread.sleep`.
+- Clamp tunables through `net.ocgendustry.util.Tuning`; add a config category if the driver has defaults.
 
 ## Troubleshooting
 - First build slow: The initial `setupDecompWorkspace` can take 10–30 minutes (decompiling MC/Forge). Subsequent builds are faster.
@@ -83,5 +105,10 @@ On Windows, use `gradlew.bat` instead of `./gradlew`.
 - Network hiccups: If Forge/MCP downloads time out/corrupt, clear `~/.gradle/caches/minecraft` (Linux/Mac) or `%USERPROFILE%\.gradle\caches\minecraft` (Windows) and retry.
 
 ## Notes
-- Component name: `advmutatron`. Attach an Adapter/Cable to the Advanced Mutatron during in-game testing.
-- Logging tag: `[ApiaristTerminal]` for driver-related diagnostics.
+- Component names: `advmutatron`, `industrial_apiary`. Attach an Adapter/Cable to the machine during in-game testing.
+- Logging tag: `[ApiaristTerminal]` for driver-related diagnostics (always go through `Log`).
+- Config file: `config/ocgendustry.cfg`; Forge lowercases category names, so keep the constants in
+  `Config` lowercase/snake_case to match what the docs promise.
+- Releases: push a tag; CI builds, creates the GitHub Release from
+  `.github/scripts/build_release_notes.sh` and publishes to CurseForge. Keep `version` in
+  `build.gradle` and `OCGendustryMod.VERSION` in sync.

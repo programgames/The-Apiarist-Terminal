@@ -16,7 +16,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.ocgendustry.Log;
 
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
@@ -29,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.ocgendustry.Config;
 import net.ocgendustry.util.MutatronLogic;
+import net.ocgendustry.util.Tuning;
 
 public final class DriverAdvMutatron extends DriverSidedTileEntity {
     
@@ -63,8 +63,8 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
                 .create());
 
             // Apply defaults from config on environment create
-            signalInterval = MutatronLogic.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
-            waitStepSeconds = MutatronLogic.clampWaitStep(Config.advMutatronWaitInterval);
+            signalInterval = Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
+            waitStepSeconds = Tuning.clampWaitStep(Config.advMutatronWaitInterval);
             eventsEnabled = Config.advMutatronDefaultEventsEnabled;
         }
 
@@ -99,13 +99,13 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         @Override
         public boolean canUpdate() {
             // Enable per-tick update() only when event emissions are enabled.
-            return net.ocgendustry.Config.enableEvents && eventsEnabled;
+            return Config.enableEvents && eventsEnabled;
         }
 
         @Override
         public void update() {
             // Respect global config for event emissions
-            if (!net.ocgendustry.Config.enableEvents || !eventsEnabled) return;
+            if (!Config.enableEvents || !eventsEnabled) return;
 
             // Throttle update frequency for performance if configured
             tickCounter++;
@@ -145,7 +145,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
 
         @Callback(doc = "function():boolean -- Returns whether events are effectively enabled right now (global AND per-device).")
         public Object[] areEventsEnabled(Context ctx, Arguments args) {
-            return new Object[]{ net.ocgendustry.Config.enableEvents && eventsEnabled };
+            return new Object[]{ Config.enableEvents && eventsEnabled };
         }
 
         private static String signature(ItemStack stack) {
@@ -231,14 +231,14 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         @Callback(doc = "function(ticks:number):boolean -- Set how often signals are emitted (every N ticks, min 1). Lower = more responsive, higher = less overhead.")
         public Object[] setSignalInterval(Context ctx, Arguments args) {
             int n = Math.max(1, args.checkInteger(0));
-            signalInterval = MutatronLogic.clampSignalInterval(n, Config.advMutatronSignalIntervalMax);
+            signalInterval = Tuning.clampSignalInterval(n, Config.advMutatronSignalIntervalMax);
 
             return new Object[]{ true };
         }
 
         @Callback(doc = "function(seconds:number):boolean -- Set the cooperative wait step used by blocking operations (default 0.2s, range 0.05..5). Lower = more responsive, higher = less overhead.")
         public Object[] setWaitInterval(Context ctx, Arguments args) {
-            waitStepSeconds = MutatronLogic.clampWaitStep(args.checkDouble(0));
+            waitStepSeconds = Tuning.clampWaitStep(args.checkDouble(0));
 
             return new Object[]{ true };
         }
@@ -247,8 +247,8 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         public Object[] applyDefaultTuning(Context ctx, Arguments args) {
             Config.syncFromFile();
 
-            signalInterval = MutatronLogic.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
-            waitStepSeconds = MutatronLogic.clampWaitStep(Config.advMutatronWaitInterval);
+            signalInterval = Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
+            waitStepSeconds = Tuning.clampWaitStep(Config.advMutatronWaitInterval);
             eventsEnabled = Config.advMutatronDefaultEventsEnabled;
 
             return new Object[]{ true };
@@ -329,21 +329,9 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
                 return new Object[]{ false, "no mutations available" };
             }
 
-            int size = map.size();
-            int keyToUse = n;
-            if (n >= 1 && n <= size) {
-                int i = 0;
-                for (Integer k : map.keySet()) {
-                    i++;
+            Integer keyToUse = resolveSelectionKey(n, map);
+            if (keyToUse == null) return new Object[]{ false, "invalid index/key" };
 
-                    if (i == n) {
-                        keyToUse = k;
-                        break;
-                    }
-                }
-            }
-
-            if (!map.containsKey(keyToUse)) return new Object[]{ false, "invalid index/key" };
             setMutation(keyToUse);
 
             return new Object[]{ true };

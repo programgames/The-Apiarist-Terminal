@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+
+### Fixed
+- `OCGendustryMod.VERSION` was still `0.1.0` while the build produced `0.2.0`; both now report the same version.
+- OpenComputers was declared as a soft dependency (`after:opencomputers`) in `@Mod`, contradicting `mcmod.info`
+  and the README; it is now `required-after:opencomputers`.
+- The access transformer lived at the resources root while the jar manifest declares `FMLAT=ocgendustry_at.cfg`,
+  which FML resolves relative to `META-INF`. It moved to `src/main/resources/META-INF/ocgendustry_at.cfg`.
+- `processResources` excluded a file name that no longer exists (`ocadvmutatron_at.cfg`); the stale rule is gone.
+- Test scripts written by the integration harness are now encoded as UTF-8 explicitly instead of using the
+  platform default charset, and the seeded test chest is marked dirty so its contents persist.
+- `mcmod.info` advertised only the Advanced Mutatron and had no project URL.
+
+### Changed
+- Config category names are now `general`, `advanced_mutatron`, `industrial_apiary` and `integration_test`,
+  matching the names used throughout the documentation. **Existing `config/ocgendustry.cfg` files keep their old
+  sections (`advanced mutatron`, `industrial apiary`, `integration test`) as dead entries and the new ones are
+  recreated with default values** — re-apply any customised setting after upgrading.
+- Interval/wait clamping moved to `net.ocgendustry.util.Tuning` and is now shared by both drivers; the Industrial
+  Apiary previously duplicated the bounds inline. `MutatronLogic` keeps only the mutation-selection helper.
+
+### Removed
+- Dead code: an unused `writeResource` overload, an unused local in the test harness, an unused import and a
+  misplaced `@SuppressWarnings`.
+
 ## [0.2.0] - 2025-10-14
 This release introduces a second component (Industrial Apiary), per-device and global event controls, a config GUI, an in-game test harness, docs, tests, and CI improvements.
 
