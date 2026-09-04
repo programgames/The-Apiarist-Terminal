@@ -13,11 +13,22 @@ public final class DriverRegistry {
             return;
         }
 
-        // Register each machine driver here.
+        // Hand written drivers: these two machines expose state no generic driver can reach.
         Driver.add(new DriverAdvMutatron());
         Driver.add(new DriverApiary());
+
+        // Processing machines: same shape, described by MachineDriver subclasses.
+        Driver.add(new DriverMutatron());
+        Driver.add(new DriverSampler());
+        Driver.add(new DriverImprinter());
+        Driver.add(new DriverReplicator());
+        Driver.add(new DriverTransposer());
+        Driver.add(new DriverExtractor());
+        Driver.add(new DriverLiquifier());
+        Driver.add(new DriverMutagenProducer());
+
         registered = true;
 
-        Log.info("Registered OpenComputers drivers: DriverAdvMutatron, DriverApiary");
+        Log.info("Registered OpenComputers drivers for 10 Gendustry machines");
     }
 }

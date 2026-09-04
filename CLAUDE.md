@@ -41,9 +41,15 @@ src/main/java/net/ocgendustry/
   Config.java                  Forge Configuration; categories General / Adv Mutatron / Apiary / Integration Test
   Log.java                     Log4j wrapper with the [ApiaristTerminal] tag
   driver/DriverRegistry.java   single registration point (idempotent)
-  driver/DriverAdvMutatron.java
-  driver/DriverApiary.java     read-only driver; writes go through generic OC inventory calls
+  driver/DriverAdvMutatron.java  hand written: exposes the GUI-only mutation selection
+  driver/DriverApiary.java     hand written, read-only; writes go through generic OC inventory calls
+  driver/MachineDriver.java    base driver for the 8 processing machines (tile class + component name)
+  driver/MachineEnvironment.java      callbacks/signals shared by those 8
+  driver/ItemMachineEnvironment.java  adds canStart() for the 5 tiles that declare it
+  driver/Driver{Mutatron,Sampler,Imprinter,Replicator,Transposer,Extractor,Liquifier,MutagenProducer}.java
+                               one per machine: component name, named slots, tanks
   util/Tuning.java             clamps for signalInterval / waitStep, shared by every driver
+  util/Stacks.java             ItemStack -> Lua table, and the cheap signature used for output events
   util/MutatronLogic.java      mutation-selection helper (no MC types) so logic is unit-testable
   client/GuiFactory|GuiModConfig.java   in-game config GUI
   command/OcGendustryCommand.java       /ocgendustry test advmutatron [fresh|reuse|all]
@@ -51,16 +57,22 @@ src/main/resources/
   mcmod.info                   version/mcversion injected by processResources
   META-INF/ocgendustry_at.cfg  access transformer named by the jar manifest (FMLAT), empty placeholder
   ocgendustry/scripts/*.lua    reference OC programs
-src/test/java/…               TuningTest, MutatronLogicTest, DriverAdvMutatronDocExamplesTest
+src/test/java/…               TuningTest, MutatronLogicTest, DriverAdvMutatronDocExamplesTest,
+                              MachineComponentNamesTest, MachineEnvironmentDocsTest
 docs/components/<name>.md      per-component callback reference
 ```
 
 ## Conventions
 
-**Drivers.** `public final class DriverXxx extends DriverSidedTileEntity` with a
+**Drivers.** Most Gendustry machines extend bdlib's `TileBaseProcessor` and implement `TileWorker`;
+for those, subclass `MachineDriver` and describe the machine (component name, named slots, tanks) —
+see `DriverSampler` for the shortest example, and extend `ItemMachineEnvironment` when the tile
+declares `canStart()`. Write a driver by hand only for machines exposing state the shared component
+cannot reach: `public final class DriverXxx extends DriverSidedTileEntity` with a
 `public static final class Environment extends AbstractManagedEnvironment implements NamedBlock`.
 Type strongly against the Gendustry tile class — **no reflection**. `priority()` returns `10` so the
 driver wins over OC's generic energy/inventory drivers. Register in `DriverRegistry.registerAll()`.
+Read slot indices from the tile's own `slots()` accessors rather than hardcoding them.
 
 **Callbacks.** Every `@Callback` carries a `doc` in the form
 `"function(arg:type):ret -- description"`. Return `new Object[]{ value }`; signal failure as
@@ -89,8 +101,11 @@ constants. Comments explain the *why* (game quirks), not the *what*.
 
 - Calling `ItemStack.getDisplayName()` on Forestry genetic items without genome NBT floods the log.
   Guard on `stack.hasTagCompound()` first (see `listMutations`).
-- Slot layouts are hardcoded from Gendustry sources: Mutatron `0/1` parents, `2` output, `3` labware,
-  `4..9` selectors; Apiary `0` queen, `1` drone, `2..5` upgrades, `6..14` output.
+- Slot layouts are hardcoded in the two hand written drivers: Adv Mutatron `0/1` parents, `2` output,
+  `3` labware, `4..9` selectors; Apiary `0` queen, `1` drone, `2..5` upgrades, `6..14` output. The
+  eight `MachineDriver` components read theirs from `tile.slots()` instead.
+- Component names must not collide with OpenComputers' own (`transposer`, `inventory_controller`);
+  that is why the Genetic Transposer is `genetic_transposer`. `MachineComponentNamesTest` guards it.
 - The version lives in two places: `build.gradle` `version` and `OCGendustryMod.VERSION`. They must match.
 - Forge lowercases config category names, so `Config.CAT_*` are lowercase snake_case on purpose —
   they are the names the README and `docs/components/*.md` promise (`advanced_mutatron.defaultEventsEnabled`).
