@@ -82,6 +82,8 @@ Contributions are welcome! For small fixes or features:
 ./gradlew build
 ```
 
+On Windows, use `gradlew.bat` instead of `./gradlew`.
+
 ## License
 - This module: MIT (see `LICENSE`).
 - Gendustry: WTFPL.
