@@ -24,6 +24,8 @@ Provide steps and any relevant commands.
 ./gradlew build
 ```
 
+On Windows, use `gradlew.bat` instead of `./gradlew`.
+
 If this adds/changes runtime behavior, include a minimal OC program or steps to verify in-game.
 
 ## Checklist
