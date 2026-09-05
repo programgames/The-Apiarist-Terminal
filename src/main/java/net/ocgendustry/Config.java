@@ -12,11 +12,12 @@ import java.io.File;
 public final class Config {
     public static Configuration config;
 
-    // General category keys
-    public static final String CAT_GENERAL = "General";
-    public static final String CAT_ADV_MUTATRON = "Advanced Mutatron";
-    public static final String CAT_APIARY = "Industrial Apiary";
-    public static final String CAT_INTEGRATION = "Integration Test";
+    // Category keys. Forge lowercases category names when writing the file, so keep them
+    // lowercase + snake_case here to match the names documented in README/docs.
+    public static final String CAT_GENERAL = "general";
+    public static final String CAT_ADV_MUTATRON = "advanced_mutatron";
+    public static final String CAT_APIARY = "industrial_apiary";
+    public static final String CAT_INTEGRATION = "integration_test";
 
     // Advanced Mutatron defaults
     public static int advMutatronSignalInterval = 2;     // ticks
