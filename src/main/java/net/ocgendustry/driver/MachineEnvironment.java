@@ -223,7 +223,7 @@ public abstract class MachineEnvironment<T extends TileBaseProcessor & TileWorke
         return new Object[]{ arr.toArray() };
     }
 
-    @Callback(doc = "function([timeout:number=60]):boolean,string? -- Wait without freezing until the machine stops working, then return true; returns false,\"timeout\" if it is still working when the timeout elapses.")
+    @Callback(doc = "function([timeout:number=60]):boolean,string? -- Wait without freezing until the machine stops working, then return true; returns false,\"timeout\" if it is still working when the timeout elapses. Returns true immediately if the machine is not working, so call it after a start() that returned true.")
     public Object[] waitForFinish(Context ctx, Arguments args) {
         double timeoutSec = args.count() > 0 ? Math.max(0, args.checkDouble(0)) : 60.0;
         long deadline = System.currentTimeMillis() + (long) (timeoutSec * 1000L);

@@ -7,6 +7,25 @@ callbacks, plus a couple of extras where the machine has something more to offer
 The Advanced Mutatron (`advmutatron`) and the Industrial Apiary (`industrial_apiary`) are *not* part
 of this family: they expose state no generic driver can reach and keep their own pages.
 
+## What this adds over plain OpenComputers
+
+Some of this was already reachable without any driver, because Gendustry implements standard
+interfaces that OpenComputers' own generic drivers bind to: the inventories are `ISidedInventory`
+(so a Transposer or Inventory Controller can already read and move stacks), the energy buffer is
+exposed as a Forge Energy capability, and the tanks are exposed as `CAP_FLUID_HANDLER` (readable
+with a Tank Controller). `getEnergy()` and `listTanks()` are conveniences that put those on the same
+component, not new information.
+
+What no generic driver could reach is the machine's own state. `getProgress()`, `isWorking()`,
+`canStart()` and `tryStart()` live on Gendustry's `TileWorker` / `TileBaseProcessor`, which nothing
+outside Gendustry knows about, and the vanilla fallback for such values, `IInventory.getField()`, is
+stubbed out in bdlib and always returns `0`. Being able to tell whether a run is in progress, how
+far along it is, whether the inputs are valid, and to start one on demand, is what these components
+add — together with the signals, and with slot indices read from the machine instead of hardcoded.
+
+This is also why the drivers return `priority() = 10`: on the same block they compete with
+OpenComputers' generic inventory and energy drivers, and the higher priority wins.
+
 ## Components
 
 | Machine | Component | Item slots | Tanks | Extra callbacks |
@@ -39,7 +58,9 @@ Available on all eight:
 - `listTanks(): table` — array of `{ name, amount, capacity, fluid? }`; empty for machines with no tank.
 - `listOutputs(): table` — array of `{ name, label?, nbt?, count, slot }` for non-empty output slots.
 - `waitForFinish([timeout:number=60]): boolean, string?` — waits without freezing the computer until
-  the machine stops working; returns `false, "timeout"` if it is still busy when the timeout elapses.
+  the machine stops working; returns `false, "timeout"` if it is still busy when the timeout elapses. It returns `true` immediately when the machine is not
+  working, so only call it after a `start()` that returned `true`: `tryStart()` marks the machine as
+  working synchronously, so there is no race in that case.
 - `setSignalInterval(ticks)`, `setWaitInterval(seconds)`, `applyDefaultTuning()`.
 - `setEventsEnabled(bool)`, `getEventsEnabled()`, `areEventsEnabled()`.
 
