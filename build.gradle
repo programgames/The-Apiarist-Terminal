@@ -179,6 +179,7 @@ configurations {
 
 dependencies {
     devMods "curse.maven:jei-238222:8752694"                    // Just Enough Items
+    devMods "curse.maven:extra-utilities-225561:2678374"        // Creative Energy Source
     devMods "curse.maven:opencomputers-223008:6057571"          // OpenComputers 1.8.7
     devMods "curse.maven:binnies-mods-223525:2916129"           // Binnie's: Extra Bees, Genetics
     devMods "curse.maven:codechicken-lib-1-8-242818:2779848"    // required by Thermal Expansion
