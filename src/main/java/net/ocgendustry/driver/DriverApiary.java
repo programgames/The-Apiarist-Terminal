@@ -28,6 +28,7 @@ import forestry.api.genetics.IChromosomeType;
 import forestry.api.genetics.ISpeciesRoot;
 import forestry.api.genetics.AlleleManager;
 import net.ocgendustry.Config;
+import net.ocgendustry.util.SignalState;
 import net.ocgendustry.util.Tuning;
 
 import java.util.ArrayList;
@@ -64,12 +65,10 @@ public final class DriverApiary extends DriverSidedTileEntity {
     public static final class Environment extends AbstractManagedEnvironment implements NamedBlock {
         private final TileApiary tile;
         private final String componentName = "industrial_apiary";
-            private int signalInterval = 2; // ticks
-        private int tickCounter = 0;
-        // Primed in the constructor for the same reason as the Advanced Mutatron: a default the
-        // machine never held makes the first tick raise a signal that describes nothing.
-        private boolean lastWorking;
-        private String lastOutputSig;
+            // Signal bookkeeping, shared with the other drivers and unit-tested in SignalStateTest.
+        // Primed in the constructor: a default the machine never held would make the first tick
+        // raise a signal that describes nothing.
+        private final SignalState signals;
 
         // Per-device toggle in addition to global Config.enableEvents
         private boolean eventsEnabled = true;
@@ -87,11 +86,12 @@ public final class DriverApiary extends DriverSidedTileEntity {
                 .withComponent(componentName, Visibility.Network)
                 .create());
 
-            signalInterval = Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax);
-            eventsEnabled = Config.apiaryDefaultEventsEnabled;
+            signals = new SignalState(
+                Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax),
+                currentlyWorking(),
+                signatureOutputs());
 
-            lastWorking = currentlyWorking();
-            lastOutputSig = signatureOutputs();
+            eventsEnabled = Config.apiaryDefaultEventsEnabled;
         }
 
         /** The apiary reports progress rather than a flag; a cycle is between 0 and 100 percent. */
@@ -123,22 +123,21 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public void update() {
             if (!Config.enableEvents || !eventsEnabled) return;
 
-            // Read the progress every tick: a cycle shorter than signalInterval would otherwise
-            // start and finish between two samples and raise neither signal. Only the output
-            // scan below is throttled.
-            boolean working = currentlyWorking();
+            switch (signals.sample(currentlyWorking())) {
+                case STARTED:
+                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_started"});
+                    break;
+                case FINISHED:
+                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_finished"});
+                    break;
+                default:
+                    break;
+            }
 
-            if (working && !lastWorking && node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_started"});
-            if (!working && lastWorking && node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_finished"});
-            lastWorking = working;
+            // Walking the nine output slots is the expensive half, so that one is throttled.
+            if (!signals.dueForOutputScan()) return;
 
-            tickCounter++;
-            if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
-
-            // Emit output change
-            String sig = signatureOutputs();
-            if (!sig.equals(lastOutputSig)) {
-                lastOutputSig = sig;
+            if (signals.outputChanged(signatureOutputs())) {
                 if (node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_output"});
             }
         }
@@ -281,7 +280,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
 
         @Callback(doc = "function(ticks:number):boolean -- Set how often signals are emitted (every N ticks, min 1). Lower = more responsive, higher = less overhead.")
         public Object[] setSignalInterval(Context ctx, Arguments args) {
-            signalInterval = Tuning.clampSignalInterval(args.checkInteger(0), Config.apiarySignalIntervalMax);
+            signals.setSignalInterval(Tuning.clampSignalInterval(args.checkInteger(0), Config.apiarySignalIntervalMax));
 
             return new Object[]{ true };
         }
@@ -290,7 +289,8 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public Object[] applyDefaultTuning(Context ctx, Arguments args) {
             Config.syncFromFile();
 
-            signalInterval = Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax);
+            signals.setSignalInterval(
+                Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax));
             eventsEnabled = Config.apiaryDefaultEventsEnabled;
 
             return new Object[]{ true };

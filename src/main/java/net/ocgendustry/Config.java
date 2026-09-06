@@ -52,8 +52,18 @@ public final class Config {
         syncFromFile();
     }
 
+    // applyDefaultTuning() reaches this from Lua, on the server thread. A script calling it in a
+    // loop would otherwise reload and possibly rewrite the file on every iteration, so repeated
+    // calls inside this window reuse what was just read.
+    private static final long RELOAD_COOLDOWN_MS = 1000L;
+    private static long lastSync = 0L;
+
     public static void syncFromFile() {
         if (config == null) return;
+
+        long now = System.currentTimeMillis();
+        if (now - lastSync < RELOAD_COOLDOWN_MS) return;
+        lastSync = now;
 
         config.load();
         readValues(config);

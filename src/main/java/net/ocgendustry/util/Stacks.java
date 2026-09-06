@@ -41,7 +41,12 @@ public final class Stacks {
 
     /**
      * Compact identity of a stack, used to detect output changes between two ticks.
-     * Cheap on purpose: no display name lookup, no NBT string building.
+     *
+     * The NBT hash is part of it, and has to be: these machines produce genetic items whose whole
+     * identity lives in their NBT, so two different bees share a registry name, a metadata value
+     * and a count. Without it, an output slot going straight from one bee to another between two
+     * samples would look unchanged and raise no signal. The hash is cheap — no display name
+     * lookup, no NBT serialisation — which is the point of not simply comparing stacks.
      */
     public static String signature(ItemStack stack) {
         if (isEmpty(stack)) return "-";
@@ -49,6 +54,9 @@ public final class Stacks {
         String name = (stack.getItem() != null && stack.getItem().getRegistryName() != null)
             ? stack.getItem().getRegistryName().toString() : "?";
 
-        return name + "@" + stack.getCount();
+        int nbt = stack.hasTagCompound() && stack.getTagCompound() != null
+            ? stack.getTagCompound().hashCode() : 0;
+
+        return name + "@" + stack.getItemDamage() + "@" + stack.getCount() + "@" + nbt;
     }
 }

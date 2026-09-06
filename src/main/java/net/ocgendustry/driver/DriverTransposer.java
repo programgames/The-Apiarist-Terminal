@@ -39,6 +39,10 @@ public final class DriverTransposer extends MachineDriver<TileTransposer> {
     /**
      * Why the loaded pair cannot be copied, or null when it can. Worth checking before committing
      * labware, which is consumed on every run.
+     *
+     * The verdict itself comes from Gendustry: what exactly it accepts in the template slot is its
+     * business, not ours, and it is answered by delegating rather than by reimplementing a rule
+     * that would drift.
      */
     private static String inputProblem(TileTransposer tile) {
         ItemStack template = tile.getStackInSlot(tile.slots().inTemplate());

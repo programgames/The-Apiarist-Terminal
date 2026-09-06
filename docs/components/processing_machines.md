@@ -77,8 +77,8 @@ exactly the class declaring it, so a component cannot pick and choose which call
   machines that only fill a tank.
 - `isValidInputs(): boolean, string?` — Genetic Transposer only. Checks the pair *currently
   loaded*: `false, "missing template"`, `false, "missing blank sample"`, or
-  `false, "incompatible inputs"` when the template and the sample do not belong to the same species
-  root (bees, trees, butterflies). Use it before committing labware, which is consumed on every run.
+  `false, "incompatible inputs"` when Gendustry itself rejects the pair. The verdict is
+  delegated to the machine rather than reimplemented, so it stays right whatever Gendustry accepts. Use it before committing labware, which is consumed on every run.
   Every other machine answers `false, "not supported by this machine"`.
 
 **Slot indices are read from the machine at runtime**, so `listSlots()` stays correct even if

@@ -49,6 +49,7 @@ src/main/java/net/ocgendustry/
   driver/Driver{Mutatron,Sampler,Imprinter,Replicator,Transposer,Extractor,Liquifier,MutagenProducer}.java
                                one per machine: component name, named slots, tanks
   util/Tuning.java             clamps signalInterval, shared by every driver
+  util/SignalState.java        started/finished/output decisions, pure Java, unit-tested
   util/Stacks.java             ItemStack -> Lua table, and the cheap signature used for output events
   util/MutatronLogic.java      mutation-selection helper (no MC types) so logic is unit-testable
   client/GuiFactory|GuiModConfig.java   in-game config GUI
@@ -99,7 +100,13 @@ off. `update()` is throttled by `signalInterval` ticks. Every component exposes
 a cycle shorter than the interval still raises both.
 Signals: `advmutatron_started|finished|output`, `apiary_started|finished|output`.
 
-**Tunables.** Clamp through `Tuning.clampSignalInterval/clampWaitStep`; defaults come from
+**Signals.** The started/finished/output decisions live in `util/SignalState`, shared by all three
+drivers and covered by `SignalStateTest`. Prime it from the machine in the constructor, sample it
+every tick, and let it throttle the output scan. Two defects came from doing this inline: edges
+detected on a throttled sample (a short cycle raised nothing) and state initialised to a value the
+machine never held (a phantom signal on the first tick).
+
+**Tunables.** Clamp through `Tuning.clampSignalInterval`; defaults come from
 `Config` at environment creation and are re-read by `applyDefaultTuning()`. New pure logic belongs
 in `util/` so it can be tested without a Minecraft bootstrap.
 

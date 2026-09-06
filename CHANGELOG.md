@@ -25,6 +25,18 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - New config category `processing_machines` holding the shared defaults for those eight components.
 - Documentation: `docs/components/processing_machines.md`.
 
+### Changed
+- The started/finished/output decisions moved to `util/SignalState`, shared by all three drivers
+  and covered by `SignalStateTest`. Until now the whole test suite only checked names and doc
+  strings, and every behavioural defect in this branch was found by running the mod rather than by
+  a test.
+- The output signature now includes metadata and an NBT hash. It was name and count only, so two
+  different bees in the same slot looked identical and an output change between two scans could
+  raise no signal — on machines whose whole product is defined by its NBT.
+- `applyDefaultTuning()` re-reads the config file at most once a second. It is reachable from Lua
+  on the server thread, so a script calling it in a loop was doing disk I/O every iteration.
+- The in-game config GUI now lists the `processing_machines` category, which it never did.
+
 ### Removed
 - `waitForFinish` (processing machines), `waitForPrincess` (`industrial_apiary`) and
   `setWaitInterval` (every component). **This breaks scripts that call them.** The first two could
