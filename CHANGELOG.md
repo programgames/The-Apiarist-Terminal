@@ -38,6 +38,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - The in-game config GUI now lists the `processing_machines` category, which it never did.
 
 ### Removed
+- The two reference programs shipped with the mod, `advmutatron_fresh.lua` and
+  `advmutatron_reuse.lua`, called `selectAndProduce(n, timeout)` for its blocking return and
+  `waitForPrincess(timeout)`. Both now start the cycle and wait on the signal instead, so the
+  integration harness that writes them out still works.
 - `waitForFinish` (processing machines), `waitForPrincess` (`industrial_apiary`) and
   `setWaitInterval` (every component). **This breaks scripts that call them.** The first two could
   not work — a callback runs on the server thread and cannot suspend itself, so both froze the game
