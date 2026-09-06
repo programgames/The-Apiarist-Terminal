@@ -18,6 +18,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
     machines that only fill a tank, and every machine but the Genetic Transposer respectively).
   - Signals `<component>_started`, `<component>_finished` and `<component>_output`.
   - Slot indices are read from the machine at runtime instead of being hardcoded.
+- `industrial_apiary` gains `getSpeciesTemplate(species)`, returning a bee species' default genome
+  as its thirteen chromosomes, and `listSpeciesTemplates([filter])`, which enumerates species from
+  Forestry's allele registry instead of guessing a UID by concatenation — so species added by other
+  mods are listed too. Both accept a UID, an allele name or a display name.
 - New config category `processing_machines` holding the shared defaults for those eight components.
 - Documentation: `docs/components/processing_machines.md`.
 
