@@ -29,10 +29,13 @@ targetCompatibility = 1.8
 minecraft {
     version = "1.12.2-14.23.5.2847"
     // A client and a server started together fight over logs/latest.log if they share a
-    // directory, and ForgeGradle gives both run tasks the same one. Pass -PmcRunDir=run-server
-    // to the server so each gets its own; the IntelliJ run configurations already do the
-    // equivalent through their working directory.
-    runDir = 'run'
+    // directory, and ForgeGradle gives both run tasks the same one. Pass -PmcRunDir=run-server to
+    // the server so each gets its own -- the shared "Minecraft Server" run configuration carries
+    // that flag. Setting workingDir on the task instead does not work: ForgeGradle assigns it in a
+    // doFirst, at execution time, and overwrites anything configured earlier. A server started
+    // without the flag generates a second, empty world in run/ and looks like the first one was
+    // lost.
+    runDir = project.findProperty('mcRunDir') ?: 'run'
     mappings = "stable_39"
 }
 
@@ -279,11 +282,6 @@ afterEvaluate {
         run.dependsOn 'classes'
     }
 
-    // A client and a dedicated server cannot share a save directory, and ForgeGradle hands both
-    // run tasks the same runDir. Setting it on the task rather than through a -P flag means the
-    // server lands in run-server/ however it is started -- terminal or IDE.
-    tasks.runServer.workingDir = file('run-server')
-    tasks.runServer.doFirst { file('run-server').mkdirs() }
 }
 
 task cpCheck {
