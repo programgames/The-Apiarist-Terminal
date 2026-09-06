@@ -16,10 +16,12 @@ local shell = require("shell")
 
 -- Forestry's karyotype order. pairs() over the returned table is unordered, and reading a genome
 -- is much easier when the chromosomes always come out the same way round.
+-- The keys are what IChromosomeType.getName() returns, which is lower_snake_case -- not the name
+-- of the EnumBeeChromosome constant.
 local CHROMOSOMES = {
-  "SPECIES", "SPEED", "LIFESPAN", "FERTILITY", "TEMPERATURE_TOLERANCE",
-  "NEVER_SLEEPS", "HUMIDITY_TOLERANCE", "TOLERATES_RAIN", "CAVE_DWELLING",
-  "FLOWER_PROVIDER", "FLOWERING", "TERRITORY", "EFFECT",
+  "species", "speed", "lifespan", "fertility", "temperature_tolerance",
+  "never_sleeps", "humidity_tolerance", "tolerates_rain", "cave_dwelling",
+  "flower_provider", "flowering", "territory", "effect",
 }
 
 local args = shell.parse(...)

@@ -383,7 +383,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
             return info;
         }
 
-        @Callback(doc = "function(species:string):table|boolean,string? -- Returns the default genome template of a bee species, keyed by chromosome name (SPECIES, SPEED, LIFESPAN, FERTILITY, TEMPERATURE_TOLERANCE, NEVER_SLEEPS, HUMIDITY_TOLERANCE, TOLERATES_RAIN, CAVE_DWELLING, FLOWER_PROVIDER, FLOWERING, TERRITORY, EFFECT), each { uid, name, dominant }. The species is accepted as an allele UID, an allele name or a display name. Returns false plus a reason when it is unknown or carries no template.")
+        @Callback(doc = "function(species:string):table|boolean,string? -- Returns the default genome template of a bee species, keyed by the chromosome name Forestry itself uses, lower_snake_case (species, speed, lifespan, fertility, temperature_tolerance, never_sleeps, humidity_tolerance, tolerates_rain, cave_dwelling, flower_provider, flowering, territory, effect), each { uid, name, dominant }. The species is accepted as an allele UID, an allele name or a display name. Returns false plus a reason when it is unknown or carries no template.")
         public Object[] getSpeciesTemplate(Context ctx, Arguments args) {
             String wanted = args.checkString(0);
 

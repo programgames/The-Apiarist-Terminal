@@ -32,7 +32,7 @@ Use OpenComputers' inventory pushItems/pullItems with these slot indices.
 - applyDefaultTuning(): boolean
   - Reload and apply defaults from the mod config.
 - getSpeciesTemplate(species:string): table | false, string
-  - The default genome of a bee species: one entry per chromosome (`SPECIES`, `SPEED`, `LIFESPAN`, `FERTILITY`, `TEMPERATURE_TOLERANCE`, `NEVER_SLEEPS`, `HUMIDITY_TOLERANCE`, `TOLERATES_RAIN`, `CAVE_DWELLING`, `FLOWER_PROVIDER`, `FLOWERING`, `TERRITORY`, `EFFECT`), each `{ uid, name, dominant }`.
+  - The default genome of a bee species: one entry per chromosome, keyed by the name Forestry uses — lower_snake_case, not the enum constant: `species`, `speed`, `lifespan`, `fertility`, `temperature_tolerance`, `never_sleeps`, `humidity_tolerance`, `tolerates_rain`, `cave_dwelling`, `flower_provider`, `flowering`, `territory`, `effect`. Each is `{ uid, name, dominant }`.
   - `species` may be an allele UID (`forestry.speciesForest`), an allele name, or a display name; it is resolved through Forestry's registry, so species from Magic Bees, Extra Bees and the rest are found too.
   - The chromosome list comes from the species root's karyotype, not from a fixed order, so it stays correct if Forestry reorders them.
 - listSpeciesTemplates([filter:string]): table
