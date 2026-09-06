@@ -219,8 +219,9 @@ dependencies {
 //
 // OpenComputers scans <world>/opencomputers/loot/ when the world loads: loot.properties maps a
 // folder to a disk label, weight and dye colour, and the folder becomes the disk's filesystem.
-// Weight 0 keeps it out of dungeon chests while still registering it, which is what the openos
-// and oppm disks themselves do. Laying the files out under usr/ means OpenOS's `install` copies
+// The weight is the chance of the disk turning up in a dungeon chest; it is set to 1 rather than
+// 0 only because a weight-0 disk is registered through a narrower path, and a dev world is not
+// somewhere anyone minds finding it. Laying the files out under usr/ means OpenOS's `install` copies
 // them to /usr, where /usr/lib is already on package.path -- so require("apiarist") just works.
 //
 // This is the only route that needs nothing of the computer: no hard drive, no internet card, no
@@ -256,7 +257,7 @@ task setupDevDisk {
             def descriptor = new File(world, 'opencomputers/loot/loot.properties')
             descriptor.parentFile.mkdirs()
             descriptor.text = "# Written by ./gradlew setupDevDisk -- do not edit by hand.\n" +
-                "apiarist=Apiarist Terminal (Gendustry):0:dyeYellow\n"
+                "apiarist=Apiarist Terminal (Gendustry):1:dyeYellow\n"
 
             logger.lifecycle("Apiarist disk -> ${disk}")
         }
@@ -333,6 +334,23 @@ afterEvaluate {
         // after `clean` finds an empty directory and silently starts without the mod again.
         run.dependsOn 'classes'
     }
+
+    // A client and a dedicated server cannot share a save directory, and ForgeGradle hands both run
+    // tasks the same runDir. It assigns workingDir from it in a doFirst, at execution time, so
+    // configuring the task is not enough -- and forgetting the -PmcRunDir flag is not a small
+    // mistake: the server silently generates a second, empty world in run/ and joining it looks
+    // exactly like having lost a base.
+    //
+    // Hence an action inserted at the end of the action list rather than a doFirst, which would
+    // prepend and run before ForgeGradle's. Everything before the task's own exec has run by then,
+    // so this is the last word on where the server writes, flag or no flag.
+    def runServer = tasks.runServer
+    runServer.actions.add(runServer.actions.size() - 1, { task ->
+        def serverDir = task.project.file('run-server')
+        serverDir.mkdirs()
+        task.workingDir = serverDir
+        task.logger.lifecycle("server world: ${serverDir}")
+    } as Action)
 
 }
 
