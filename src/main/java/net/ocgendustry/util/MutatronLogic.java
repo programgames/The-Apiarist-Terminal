@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * Small, pure-Java helpers extracted from the Advanced Mutatron driver logic
- * so we can unit test selection and clamping behavior without MC/Forge.
+ * so we can unit test selection behavior without MC/Forge.
  */
 public final class MutatronLogic {
     private MutatronLogic() {}
@@ -25,21 +25,5 @@ public final class MutatronLogic {
         }
 
         return null;
-    }
-
-    /** Clamp signal interval to [1..max]. */
-    public static int clampSignalInterval(int desired, int max) {
-        if (max < 1) max = 1;
-        if (desired < 1) return 1;
-
-        return Math.min(desired, max);
-    }
-
-    /** Clamp wait step to [0.05..5.0]. */
-    public static double clampWaitStep(double seconds) {
-        if (seconds < 0.05) return 0.05;
-        if (seconds > 5.0) return 5.0;
-
-        return seconds;
     }
 }

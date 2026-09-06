@@ -112,7 +112,7 @@ print("Produced:", res.name, res.count)
 ```
 
 ## Integration tests (creative, gated)
-- Enable: Mods -> The Apiarist Terminal -> Integration test -> enable = true
+- Enable: Mods -> The Apiarist Terminal -> Config -> integration_test -> enable = true
 - Optional auto placement: set `allowAutoPlacement = true` (creative required). This places a Transposer + Chest + Adapter around a found Mutatron and seeds the chest with parents and labware.
 - Command:
   - `/ocgendustry test advmutatron fresh` — writes `ocgendustry-test/advmutatron_fresh.lua`
