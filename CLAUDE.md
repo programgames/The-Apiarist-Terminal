@@ -48,7 +48,7 @@ src/main/java/net/ocgendustry/
   driver/MachineEnvironment.java      THE component for those 8: final, holds every @Callback
   driver/Driver{Mutatron,Sampler,Imprinter,Replicator,Transposer,Extractor,Liquifier,MutagenProducer}.java
                                one per machine: component name, named slots, tanks
-  util/Tuning.java             clamps for signalInterval / waitStep, shared by every driver
+  util/Tuning.java             clamps signalInterval, shared by every driver
   util/Stacks.java             ItemStack -> Lua table, and the cheap signature used for output events
   util/MutatronLogic.java      mutation-selection helper (no MC types) so logic is unit-testable
   client/GuiFactory|GuiModConfig.java   in-game config GUI

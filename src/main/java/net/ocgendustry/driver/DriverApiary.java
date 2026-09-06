@@ -33,7 +33,6 @@ import net.ocgendustry.util.Tuning;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * OpenComputers driver for Gendustry Industrial Apiary (TileApiary).
@@ -67,8 +66,10 @@ public final class DriverApiary extends DriverSidedTileEntity {
         private final String componentName = "industrial_apiary";
             private int signalInterval = 2; // ticks
         private int tickCounter = 0;
-        private boolean lastWorking = false;
-        private String lastOutputSig = "";
+        // Primed in the constructor for the same reason as the Advanced Mutatron: a default the
+        // machine never held makes the first tick raise a signal that describes nothing.
+        private boolean lastWorking;
+        private String lastOutputSig;
 
         // Per-device toggle in addition to global Config.enableEvents
         private boolean eventsEnabled = true;
@@ -88,6 +89,19 @@ public final class DriverApiary extends DriverSidedTileEntity {
 
             signalInterval = Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax);
             eventsEnabled = Config.apiaryDefaultEventsEnabled;
+
+            lastWorking = currentlyWorking();
+            lastOutputSig = signatureOutputs();
+        }
+
+        /** The apiary reports progress rather than a flag; a cycle is between 0 and 100 percent. */
+        private boolean currentlyWorking() {
+            IBeekeepingLogic logic = tile.getBeekeepingLogic();
+            if (logic == null) return false;
+
+            float pct = logic.getBeeProgressPercent();
+
+            return pct > 0f && pct < 100f;
         }
 
         @Override
@@ -112,12 +126,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
             // Read the progress every tick: a cycle shorter than signalInterval would otherwise
             // start and finish between two samples and raise neither signal. Only the output
             // scan below is throttled.
-            boolean working = false;
-            IBeekeepingLogic logic = tile.getBeekeepingLogic();
-            if (logic != null) {
-                float pct = logic.getBeeProgressPercent();
-                working = pct > 0f && pct < 100f;
-            }
+            boolean working = currentlyWorking();
 
             if (working && !lastWorking && node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_started"});
             if (!working && lastWorking && node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_finished"});

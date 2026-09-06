@@ -25,6 +25,17 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - New config category `processing_machines` holding the shared defaults for those eight components.
 - Documentation: `docs/components/processing_machines.md`.
 
+### Removed
+- `waitForFinish` (processing machines), `waitForPrincess` (`industrial_apiary`) and
+  `setWaitInterval` (every component). **This breaks scripts that call them.** The first two could
+  not work — a callback runs on the server thread and cannot suspend itself, so both froze the game
+  for their whole timeout — and the third only tuned the step of those loops. Replace a wait with
+  `event.pull(timeout, "<component>_finished")`, and `waitForPrincess` with that plus
+  `getPrincessStatus()`.
+- The `waitStepSeconds` option from the `advanced_mutatron`, `industrial_apiary` and
+  `processing_machines` config categories. An existing `ocgendustry.cfg` keeps the entry as a dead
+  line until Forge rewrites the file; it is ignored.
+
 ### Fixed
 - The two hand-written drivers carried the same blocking pattern, inherited from before this work:
   `DriverAdvMutatron.selectAndProduce` and `DriverApiary.waitForPrincess` looped on

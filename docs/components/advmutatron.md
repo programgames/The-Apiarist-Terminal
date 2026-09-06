@@ -63,7 +63,7 @@ print("effective:", adv.areEventsEnabled())
 ## Notes
 - Labels and NBT are only included when present to avoid Forestry genome spam.
 - Writes are performed via generic inventory moves; no direct inserts/removals are exposed by the driver.
-- Defaults for signal frequency and wait step are configurable in-game (Mods menu) or via `config/ocgendustry.cfg`.
+- Defaults for signal frequency and for whether events start enabled are configurable in-game (Mods menu) or via `config/ocgendustry.cfg`.
 
 ## Quick start
 1) Attach an Adapter to the Advanced Mutatron.

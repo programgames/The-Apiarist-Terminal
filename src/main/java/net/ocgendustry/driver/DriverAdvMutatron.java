@@ -65,6 +65,9 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             // Apply defaults from config on environment create
             signalInterval = Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
             eventsEnabled = Config.advMutatronDefaultEventsEnabled;
+
+            lastWorking = tile.isWorking();
+            lastOutSig = signature(tile.getStackInSlot(2));
         }
 
         @Override
@@ -86,8 +89,11 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         }
 
         // Track state to emit OpenComputers signals without blocking.
-        private boolean lastWorking = false;
-        private String lastOutSig = "";
+        // Primed from the machine in the constructor: starting from a value the machine never
+        // had makes the first tick raise a phantom _started (if it was already running when the
+        // component appeared) and a phantom _output (an empty slot never matches "").
+        private boolean lastWorking;
+        private String lastOutSig;
         private int signalInterval = 2; // emit signals every N ticks (default 2)
         private int tickCounter = 0;
 

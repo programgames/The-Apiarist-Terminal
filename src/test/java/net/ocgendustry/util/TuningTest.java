@@ -19,11 +19,4 @@ public class TuningTest {
         assertThat(Tuning.clampSignalInterval(-5, 0)).isEqualTo(1);
     }
 
-    @Test
-    public void clampWaitStep_boundsAreRespected() {
-        assertThat(Tuning.clampWaitStep(0.0)).isEqualTo(0.05);
-        assertThat(Tuning.clampWaitStep(0.05)).isEqualTo(0.05);
-        assertThat(Tuning.clampWaitStep(2.0)).isEqualTo(2.0);
-        assertThat(Tuning.clampWaitStep(10.0)).isEqualTo(5.0);
-    }
 }

@@ -48,8 +48,11 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
     private final T tile;
     private final MachineSpec<T> spec;
 
-    private boolean lastWorking = false;
-    private String lastOutputSignature = "";
+    // Primed from the machine in the constructor, not from a default: a component created while
+    // its machine is already running would otherwise raise a phantom _started on its first tick,
+    // and one with an output slot a phantom _output, because "" never matches a real signature.
+    private boolean lastWorking;
+    private String lastOutputSignature;
     private int tickCounter = 0;
 
     private int signalInterval;
@@ -66,6 +69,9 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
             .create());
 
         applyDefaults();
+
+        lastWorking = tile.isWorking();
+        lastOutputSignature = outputSignature(spec.outputSlots(tile));
     }
 
     // ---- OpenComputers plumbing ----
