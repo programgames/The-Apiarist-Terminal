@@ -9,10 +9,13 @@
   are idle, empty or unpowered. It records what every Gendustry component reports about itself, so
   the state of a whole base can be reviewed off-screen.
 
-  The report is far longer than a screen. Two ways to get it out:
-    - quit the world to title, and the file lands on disk under
-      saves/<world>/opencomputers/<uuid>/home/  (OpenComputers only flushes on save)
-    - or, with an Internet Card:  pastebin put /home/report.txt
+  The report is far longer than a screen, so it is written to a file. To read it off the computer,
+  save the world -- quitting to title does it -- and the file appears on the host under
+  saves/<world>/opencomputers/<uuid>/home/, or world/opencomputers/... on a dedicated server.
+  OpenComputers only flushes its filesystems on save, so nothing is there before that.
+
+  `pastebin put` is not an option any more: the API key baked into OpenOS 1.8.7 is dead upstream
+  and pastebin.com answers 422 "Bad API request, invalid api_dev_key" to every anonymous upload.
 ]]
 
 local component = require("component")
@@ -210,5 +213,4 @@ out:close()
 
 print(string.format("%d components, %d Gendustry, %d working", total, found, running))
 print("report written to " .. path)
-print("upload it with:  pastebin put " .. path)
-print("or quit to title and it lands on disk for Claude to read")
+print("save the world and read it on the host, under opencomputers/<uuid>" .. path)

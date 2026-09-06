@@ -173,7 +173,7 @@ elseif mode == "dump" then
   out:close()
 
   print(string.format("%d species written to %s", #arr, path))
-  print("read it off-screen with:  pastebin put " .. path)
+  print("save the world and read it on the host, under opencomputers/<uuid>" .. path)
 
 elseif mode then
   local arr = fetch(mode)
