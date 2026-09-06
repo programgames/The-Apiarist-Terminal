@@ -114,6 +114,18 @@ in `util/` so it can be tested without a Minecraft bootstrap.
 a blank line before multi-statement `return`s, slot indices as named `private static final`
 constants. Comments explain the *why* (game quirks), not the *what*.
 
+## Running it
+
+```powershell
+.\gradlew.bat setupDevMods   # once: third-party mods into run/mods and run-server/mods
+.\gradlew.bat runClient      # client, world in run/
+.\gradlew.bat runServer      # dedicated server, world in run-server/, needs a real terminal
+```
+
+`.idea/runConfigurations/` carries the same two as shared IntelliJ configurations. Gendustry, bdlib
+and Forestry must never be copied into `run/mods`: the build already puts them on the classpath and
+FML refuses to start on a duplicate mod id.
+
 ## Traps
 
 - Calling `ItemStack.getDisplayName()` on Forestry genetic items without genome NBT floods the log.

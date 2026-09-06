@@ -162,3 +162,73 @@ if ((project.findProperty('curseforgeProjectId') ?: System.getenv('CURSEFORGE_PR
         }
     }
 }
+
+// --- Local test environment --------------------------------------------------------------------
+// The mods a dev client needs to exercise this one: Gendustry itself, plus the bee mods it builds
+// on and a creative power source. They are downloaded from CurseMaven and copied into the run
+// directories, never committed -- redistributing someone else's jar is not ours to do.
+//
+// Gendustry, bdlib and Forestry are absent on purpose: the build already puts them on the
+// classpath, and a second copy in run/mods makes FML refuse to start on a duplicate mod id.
+//
+//   .\gradlew.bat setupDevMods     downloads them and fills run/mods and run-server/mods
+configurations {
+    devMods
+}
+
+dependencies {
+    devMods "curse.maven:opencomputers-223008:6057571"          // OpenComputers 1.8.7
+    devMods "curse.maven:binnies-mods-223525:2916129"           // Binnie's: Extra Bees, Genetics
+    devMods "curse.maven:codechicken-lib-1-8-242818:2779848"    // required by Thermal Expansion
+    devMods "curse.maven:redstone-flux-270789:2920436"
+    devMods "curse.maven:cofh-core-69162:2920433"
+    devMods "curse.maven:cofh-world-271384:2920434"
+    devMods "curse.maven:thermal-foundation-222880:2926428"
+    devMods "curse.maven:thermal-expansion-69163:2926431"       // Creative Energy Cell
+}
+
+task setupDevMods {
+    group = 'apiarist'
+    description = 'Downloads the third-party mods a dev client and server need, into run/ and run-server/'
+
+    doLast {
+        ['run/mods', 'run-server/mods'].each { dir ->
+            // Wipe first: a jar left over from a previous version, or copied in by hand, makes FML
+            // refuse to start on a duplicate mod id.
+            delete fileTree(dir) { include '*.jar' }
+            copy {
+                from configurations.devMods
+                into file(dir)
+            }
+        }
+
+        // The dedicated server refuses to start until the EULA is accepted, and a fresh dev server
+        // with no properties file generates a survival world with online-mode on, which a dev
+        // client cannot join.
+        def serverDir = file('run-server')
+        serverDir.mkdirs()
+        def eula = new File(serverDir, 'eula.txt')
+        if (!eula.exists()) eula.text = "eula=true" + System.lineSeparator()
+
+        def props = new File(serverDir, 'server.properties')
+        if (!props.exists()) {
+            props.text = """online-mode=false
+gamemode=1
+force-gamemode=true
+level-type=FLAT
+generate-structures=false
+spawn-monsters=false
+difficulty=0
+allow-flight=true
+spawn-protection=0
+view-distance=6
+motd=Apiarist Terminal - dev server
+# Minecraft's default. The watchdog kills the server when a tick exceeds it, which is exactly
+# what a callback that blocks the server thread will trigger.
+max-tick-time=60000
+"""
+        }
+
+        logger.lifecycle("run/mods and run-server/mods ready: ${configurations.devMods.files.size()} mods")
+    }
+}

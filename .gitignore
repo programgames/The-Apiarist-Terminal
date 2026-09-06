@@ -19,7 +19,11 @@ crash-reports/
 *.launch
 
 # IntelliJ IDEA
-.idea/
+# IntelliJ: tout est local sauf les configurations d'execution, qui sont partagees.
+# Il faut exclure le contenu (.idea/*) et non le dossier (.idea/), sinon git refuse de
+# reinclure quoi que ce soit a l'interieur.
+.idea/*
+!.idea/runConfigurations/
 *.iml
 *.ipr
 *.iws
@@ -84,3 +88,8 @@ hs_err_pid*.log
 # Sensitive data (if you add local credentials)
 gradle-local.properties
 local.properties
+
+# Dossiers d'execution du client et du serveur de dev : mondes, configs et mods tiers.
+# Les mods sont recuperes par `gradlew setupDevMods`, jamais versionnes.
+run/
+run-server/

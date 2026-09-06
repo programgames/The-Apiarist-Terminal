@@ -108,6 +108,46 @@ way the Advanced Mutatron exposes its mutation selection:
   script wait with `event.pull`.
 - Clamp tunables through `net.ocgendustry.util.Tuning`; add a config category if the driver has defaults.
 
+## Running the mod for real
+
+Unit tests never start Minecraft, so anything that touches OpenComputers, Gendustry or Forestry is
+only checked by the compiler. Every behavioural defect in this mod's history was found by running
+it. There is a dev client and a dev server for that.
+
+```powershell
+.\gradlew.bat setupDevMods    # once: downloads the third-party mods into run/ and run-server/
+.\gradlew.bat runClient       # a client, world in run/
+.\gradlew.bat runServer       # a dedicated server, world in run-server/
+```
+
+`setupDevMods` pulls OpenComputers, Binnie's Mods, and the Thermal/CoFH stack for a Creative Energy
+Cell, from CurseMaven. Nothing is committed: redistributing someone else's jar is not ours to do.
+It also writes `run-server/eula.txt` and a `server.properties` set up for a flat creative world with
+`online-mode=false`, so a dev client can join.
+
+Gendustry, bdlib and Forestry are deliberately **not** in that list. The build already puts them on
+the classpath, and a second copy under `run/mods` makes FML refuse to start on a duplicate mod id.
+
+### From IntelliJ
+
+`.idea/runConfigurations/` holds two shared configurations, **Minecraft Client** and **Minecraft
+Server**, so they appear in the run dropdown after a Gradle import — with the debugger attached,
+which is the only comfortable way to inspect a tile entity mid-cycle.
+
+They exist as files rather than being left to `gradlew genIntellijRuns` because that task writes
+into `.idea/workspace.xml`, which is per-developer and not versioned. It also gives each one its own
+working directory: `run/` for the client, `run-server/` for the server. That matters — both default
+to `run/`, and a client and a server started together then fight over the same `logs/latest.log`.
+
+### Running a client and a server together
+
+Start the server first, then the client, and connect to `localhost` through Multiplayer → Direct
+Connect. The dev client logs in as `Player###` in offline mode, which the generated
+`server.properties` accepts.
+
+A server started outside a real terminal stops immediately: it reads its console input and treats
+the closed stream as the `stop` command.
+
 ## Troubleshooting
 - First build slow: The initial `setupDecompWorkspace` can take 10–30 minutes (decompiling MC/Forge). Subsequent builds are faster.
 - Use Java 8: ForgeGradle 2.3 requires JDK 8. Running with Java 9+ can cause NPEs in tasks like `recompileMc`.
