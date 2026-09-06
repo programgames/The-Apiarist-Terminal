@@ -282,6 +282,23 @@ afterEvaluate {
         run.dependsOn 'classes'
     }
 
+    // A client and a dedicated server cannot share a save directory, and ForgeGradle hands both run
+    // tasks the same runDir. It assigns workingDir from it in a doFirst, at execution time, so
+    // configuring the task is not enough -- and forgetting the -PmcRunDir flag is not a small
+    // mistake: the server silently generates a second, empty world in run/ and joining it looks
+    // exactly like having lost a base.
+    //
+    // Hence an action inserted at the end of the action list rather than a doFirst, which would
+    // prepend and run before ForgeGradle's. Everything before the task's own exec has run by then,
+    // so this is the last word on where the server writes, flag or no flag.
+    def runServer = tasks.runServer
+    runServer.actions.add(runServer.actions.size() - 1, { task ->
+        def serverDir = task.project.file('run-server')
+        serverDir.mkdirs()
+        task.workingDir = serverDir
+        task.logger.lifecycle("server world: ${serverDir}")
+    } as Action)
+
 }
 
 task cpCheck {
