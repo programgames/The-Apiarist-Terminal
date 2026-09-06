@@ -134,9 +134,9 @@ for that reason.
 
 - Calling `ItemStack.getDisplayName()` on Forestry genetic items without genome NBT floods the log.
   Guard on `stack.hasTagCompound()` first (see `listMutations`).
-- Slot layouts are hardcoded in the two hand written drivers: Adv Mutatron `0/1` parents, `2` output,
-  `3` labware, `4..9` selectors; Apiary `0` queen, `1` drone, `2..5` upgrades, `6..14` output. The
-  eight `MachineDriver` components read theirs from `tile.slots()` instead.
+- Every driver reads its slot indices from the tile's own `slots()` accessors. The two hand written
+  ones used to hardcode them; the values were right, but a Gendustry reorder would have made them
+  silently wrong.
 - Component names must not collide with OpenComputers' own (`transposer`, `inventory_controller`);
   that is why the Genetic Transposer is `genetic_transposer`. `MachineComponentNamesTest` guards it.
 - The version lives in two places: `build.gradle` `version` and `OCGendustryMod.VERSION`. They must match.
