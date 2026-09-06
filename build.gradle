@@ -28,7 +28,11 @@ targetCompatibility = 1.8
 
 minecraft {
     version = "1.12.2-14.23.5.2847"
-    runDir = "run"
+    // A client and a server started together fight over logs/latest.log if they share a
+    // directory, and ForgeGradle gives both run tasks the same one. Pass -PmcRunDir=run-server
+    // to the server so each gets its own; the IntelliJ run configurations already do the
+    // equivalent through their working directory.
+    runDir = project.findProperty('mcRunDir') ?: 'run'
     mappings = "stable_39"
 }
 
@@ -48,8 +52,19 @@ repositories {
 }
 
 dependencies {
-    // OpenComputers API (needed on compile classpath; not bundled in the jar)
-    compile 'li.cil.oc:OpenComputers:MC1.12.2-1.7.5.214:api'
+    // OpenComputers API. compileOnly, not compile: on the runtime classpath this jar shadows the
+    // real mod's own li.cil.oc.api classes, and the two differ. A dev client running OpenComputers
+    // 1.8.7 then dies the moment a screen is drawn, with
+    // NoSuchMethodError: li.cil.oc.api.internal.TextBuffer.fill(IIIII)V -- a signature that only
+    // exists in the newer API. maven.cil.li publishes nothing past 1.7.5.x, so the version cannot
+    // be aligned; keeping the jar off the runtime classpath is the fix, and it is what happens in
+    // production anyway, where the API comes from the installed mod.
+    compileOnly 'li.cil.oc:OpenComputers:MC1.12.2-1.7.5.214:api'
+
+    // The tests read @Callback annotations by reflection, so they need the API at compile
+    // and at test runtime. testCompile is a separate configuration from the one the run
+    // tasks use, so this does not put the jar back in front of the real mod in game.
+    testCompile 'li.cil.oc:OpenComputers:MC1.12.2-1.7.5.214:api'
 
     // Prefer automatic download + deobf from CurseMaven if IDs are provided in gradle.properties
     if (project.hasProperty('gendustryProjectId') && project.hasProperty('gendustryFileId') && gendustryProjectId && gendustryFileId) {
