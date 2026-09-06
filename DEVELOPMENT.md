@@ -125,8 +125,14 @@ Cell, from CurseMaven. Nothing is committed: redistributing someone else's jar i
 It also writes `run-server/eula.txt` and a `server.properties` set up for a flat creative world with
 `online-mode=false`, so a dev client can join.
 
-Gendustry, bdlib and Forestry are deliberately **not** in that list. The build already puts them on
-the classpath, and a second copy under `run/mods` makes FML refuse to start on a duplicate mod id.
+Gendustry, bdlib, Forestry and RedstoneFlux are deliberately **not** in that list. The build already
+puts them on the classpath, and a second copy under `run/mods` makes FML refuse to start on a
+duplicate mod id.
+
+One trap worth knowing: Gradle keeps `compileOnly` dependencies off the run classpath, but IntelliJ
+maps them to Provided scope and puts them on it. A `compileOnly` mod jar therefore duplicates only
+when the game is launched from the IDE, and not from `gradlew`. RedstoneFlux is declared
+`deobfCompile` so both paths see exactly one copy.
 
 ### From IntelliJ
 

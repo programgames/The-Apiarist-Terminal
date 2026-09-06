@@ -122,9 +122,13 @@ constants. Comments explain the *why* (game quirks), not the *what*.
 .\gradlew.bat runServer      # dedicated server, world in run-server/, needs a real terminal
 ```
 
-`.idea/runConfigurations/` carries the same two as shared IntelliJ configurations. Gendustry, bdlib
-and Forestry must never be copied into `run/mods`: the build already puts them on the classpath and
-FML refuses to start on a duplicate mod id.
+`.idea/runConfigurations/` carries the same two as shared IntelliJ configurations.
+
+**A mod on the classpath never goes in `run/mods` too**, or FML refuses to start on a duplicate mod
+id. That covers Gendustry, bdlib, Forestry and RedstoneFlux. Watch out for `compileOnly`: Gradle
+keeps those off the run classpath but IntelliJ maps them to Provided scope and includes them, so a
+`compileOnly` mod jar duplicates only when launched from the IDE. RedstoneFlux is `deobfCompile`
+for that reason.
 
 ## Traps
 
