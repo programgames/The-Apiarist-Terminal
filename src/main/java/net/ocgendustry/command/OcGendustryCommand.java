@@ -13,10 +13,16 @@ import net.ocgendustry.Config;
 import net.bdew.gendustry.machines.advmutatron.TileMutatronAdv;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Scanner;
 
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import net.minecraft.util.ResourceLocation;
@@ -35,6 +41,7 @@ import forestry.api.genetics.AlleleManager;
 import forestry.api.genetics.IAllele;
 import forestry.api.genetics.ISpeciesRoot;
 
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.inventory.IInventory;
@@ -63,7 +70,7 @@ public class OcGendustryCommand extends CommandBase {
 
         if (!Config.enableIntegrationHarness) {
             player.sendMessage(new TextComponentString(TextFormatting.RED + "Integration harness disabled in config."));
-            player.sendMessage(new TextComponentString(TextFormatting.GRAY + "Enable via: Mods -> The Apiarist Terminal -> Config -> Integration Test -> enable"));
+            player.sendMessage(new TextComponentString(TextFormatting.GRAY + "Enable via: Mods -> The Apiarist Terminal -> Config -> integration_test -> enable"));
             return;
         }
 
@@ -127,7 +134,7 @@ public class OcGendustryCommand extends CommandBase {
         }
 
         // Write ready-to-run OC Lua scripts from resources (patched with sides if rig placed)
-        String variant = (args.length >= 3) ? args[2].toLowerCase() : "all";
+        String variant = (args.length >= 3) ? args[2].toLowerCase(Locale.ROOT) : "all";
         boolean writeFresh = variant.equals("fresh") || variant.equals("all") || variant.isEmpty();
         boolean writeReuse = variant.equals("reuse") || variant.equals("all") || variant.isEmpty();
 
@@ -151,28 +158,13 @@ public class OcGendustryCommand extends CommandBase {
         }
     }
 
-    private int writeResource(File outDir, String outName, String resourcePath) throws IOException {
-        try (java.io.InputStream in = this.getClass().getResourceAsStream(resourcePath)) {
-            if (in == null) return 0;
-
-            File out = new File(outDir, outName);
-            try (FileWriter fw = new FileWriter(out)) {
-                java.util.Scanner s = new java.util.Scanner(in, java.nio.charset.StandardCharsets.UTF_8.name()).useDelimiter("\\A");
-                String content = s.hasNext() ? s.next() : "";
-                fw.write(content);
-            }
-
-            return 1;
-        }
-    }
-
     private int writeResource(File outDir, String outName, String resourcePath, Map<String, String> replacements) throws IOException {
-        try (java.io.InputStream in = this.getClass().getResourceAsStream(resourcePath)) {
+        try (InputStream in = this.getClass().getResourceAsStream(resourcePath)) {
             if (in == null) return 0;
 
             File out = new File(outDir, outName);
-            try (FileWriter fw = new FileWriter(out)) {
-                java.util.Scanner s = new java.util.Scanner(in, java.nio.charset.StandardCharsets.UTF_8.name()).useDelimiter("\\A");
+            try (Writer fw = new OutputStreamWriter(new FileOutputStream(out), StandardCharsets.UTF_8)) {
+                Scanner s = new Scanner(in, StandardCharsets.UTF_8.name()).useDelimiter("\\A");
                 String content = s.hasNext() ? s.next() : "";
 
                 if (replacements != null && !replacements.isEmpty()) {
@@ -180,7 +172,7 @@ public class OcGendustryCommand extends CommandBase {
                         content = content.replace(e.getKey(), e.getValue());
                     }
 
-                    // Fallback: patch default east/west if placeholders weren't present
+                    // Fallback: patch the script defaults if the placeholders weren't present
                     if (replacements.containsKey("{{SRC}}")) {
                         content = content.replace("local SRC = sides.east", "local SRC = " + replacements.get("{{SRC}}"));
                     }
@@ -188,9 +180,10 @@ public class OcGendustryCommand extends CommandBase {
                     if (replacements.containsKey("{{DST}}")) {
                         content = content.replace("local DST = sides.west", "local DST = " + replacements.get("{{DST}}"));
                     }
-                           if (replacements.containsKey("{{APIARY}}")) {
-                               content = content.replace("local APIARY = sides.north", "local APIARY = " + replacements.get("{{APIARY}}"));
-                           }
+
+                    if (replacements.containsKey("{{APIARY}}")) {
+                        content = content.replace("local APIARY = sides.north", "local APIARY = " + replacements.get("{{APIARY}}"));
+                    }
                 }
 
                 fw.write(content);
@@ -317,8 +310,6 @@ public class OcGendustryCommand extends CommandBase {
     private IBlockState withFacing(IBlockState state, EnumFacing facing) {
         for (IProperty<?> p : state.getPropertyKeys()) {
             if (p instanceof PropertyDirection && "facing".equals(p.getName())) {
-                @SuppressWarnings("unchecked")
-
                 PropertyDirection dir = (PropertyDirection) p;
                 if (dir.getAllowedValues().contains(facing)) return state.withProperty(dir, facing);
             }
@@ -376,8 +367,7 @@ public class OcGendustryCommand extends CommandBase {
         };
 
         // Insert some labware if present
-        Block labwareItemBlock = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("gendustry", "labware"));
-        net.minecraft.item.Item labwareItem = ForgeRegistries.ITEMS.getValue(new ResourceLocation("gendustry", "labware"));
+        Item labwareItem = ForgeRegistries.ITEMS.getValue(new ResourceLocation("gendustry", "labware"));
         if (labwareItem != null) {
             ItemStack lab = new ItemStack(labwareItem, 32);
             inserted += putNext(inv, lab);
@@ -394,6 +384,8 @@ public class OcGendustryCommand extends CommandBase {
                 inserted += putNext(inv, drone);
             }
         }
+
+        if (inserted > 0) inv.markDirty();
 
         return inserted;
     }

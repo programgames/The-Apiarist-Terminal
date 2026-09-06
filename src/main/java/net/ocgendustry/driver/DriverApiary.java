@@ -24,6 +24,7 @@ import forestry.api.apiculture.EnumBeeType;
 import forestry.api.genetics.ISpeciesRoot;
 import forestry.api.genetics.AlleleManager;
 import net.ocgendustry.Config;
+import net.ocgendustry.util.Tuning;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -82,8 +83,8 @@ public final class DriverApiary extends DriverSidedTileEntity {
                 .withComponent(componentName, Visibility.Network)
                 .create());
 
-            signalInterval = Math.max(1, Math.min(Config.apiarySignalInterval, Config.apiarySignalIntervalMax));
-            waitStepSeconds = Math.max(0.05, Math.min(5.0, Config.apiaryWaitInterval));
+            signalInterval = Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax);
+            waitStepSeconds = Tuning.clampWaitStep(Config.apiaryWaitInterval);
             eventsEnabled = Config.apiaryDefaultEventsEnabled;
         }
 
@@ -104,7 +105,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
 
         @Override
         public void update() {
-            if (!net.ocgendustry.Config.enableEvents || !eventsEnabled) return;
+            if (!Config.enableEvents || !eventsEnabled) return;
 
             tickCounter++;
             if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
@@ -142,7 +143,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
 
         @Callback(doc = "function():boolean -- Returns whether events are effectively enabled right now (global AND per-device).")
         public Object[] areEventsEnabled(Context ctx, Arguments args) {
-            return new Object[]{ net.ocgendustry.Config.enableEvents && eventsEnabled };
+            return new Object[]{ Config.enableEvents && eventsEnabled };
         }
 
         private String signatureOutputs() {
@@ -266,16 +267,14 @@ public final class DriverApiary extends DriverSidedTileEntity {
 
         @Callback(doc = "function(seconds:number):boolean -- Set the cooperative wait step used by blocking operations (default 0.2s, range 0.05..5). Lower = more responsive, higher = less overhead.")
         public Object[] setWaitInterval(Context ctx, Arguments args) {
-            waitStepSeconds = Math.max(0.05, Math.min(5.0, args.checkDouble(0)));
+            waitStepSeconds = Tuning.clampWaitStep(args.checkDouble(0));
 
             return new Object[]{ true };
         }
 
         @Callback(doc = "function(ticks:number):boolean -- Set how often signals are emitted (every N ticks, min 1). Lower = more responsive, higher = less overhead.")
         public Object[] setSignalInterval(Context ctx, Arguments args) {
-            int n = Math.max(1, args.checkInteger(0));
-
-            signalInterval = Math.min(n, Config.apiarySignalIntervalMax);
+            signalInterval = Tuning.clampSignalInterval(args.checkInteger(0), Config.apiarySignalIntervalMax);
 
             return new Object[]{ true };
         }
@@ -284,14 +283,14 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public Object[] applyDefaultTuning(Context ctx, Arguments args) {
             Config.syncFromFile();
 
-            signalInterval = Math.max(1, Math.min(Config.apiarySignalInterval, Config.apiarySignalIntervalMax));
-            waitStepSeconds = Math.max(0.05, Math.min(5.0, Config.apiaryWaitInterval));
+            signalInterval = Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax);
+            waitStepSeconds = Tuning.clampWaitStep(Config.apiaryWaitInterval);
             eventsEnabled = Config.apiaryDefaultEventsEnabled;
 
             return new Object[]{ true };
         }
 
-    @Callback(doc = "function([timeout:number=180]):boolean,string? -- Wait (non-freezing) until the current queen dies and the queen slot is freed. If a princess is inserted, this continues waiting until a queen is bred and killed, or the timeout elapses. Returns false,reason on timeout or if no princess/queen present.")
+        @Callback(doc = "function([timeout:number=180]):boolean,string? -- Wait (non-freezing) until the current queen dies and the queen slot is freed. If a princess is inserted, this continues waiting until a queen is bred and killed, or the timeout elapses. Returns false,reason on timeout or if no princess/queen present.")
         public Object[] waitForPrincess(Context ctx, Arguments args) {
             double timeoutSec = args.count() > 0 ? Math.max(0, args.checkDouble(0)) : 180.0;
 
