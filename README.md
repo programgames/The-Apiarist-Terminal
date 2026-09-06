@@ -45,12 +45,17 @@ Full callback reference can be found in per-component docs, along with quick sta
 Currently exposed defaults:
 - Advanced Mutatron and Industrial Apiary: signal interval (ticks) and whether events start enabled.
   - Changes apply to newly created component instances; to apply live, call `adv.applyDefaultTuning()` from an OC computer.
+- Processing machines: the same settings, shared by the eight machines of
+  `docs/components/processing_machines.md`, under the `processing_machines` category.
+- The signal interval throttles the `_output` signal only. `_started` and `_finished` are raised
+  from the machine's own tick, so a short cycle cannot slip between two samples.
 
 ### Event controls
 - Global (server/admin): `general.enableEvents` — hard-disables all OC signals from all devices when false.
 - Per-device defaults:
   - `advanced_mutatron.defaultEventsEnabled`
   - `industrial_apiary.defaultEventsEnabled`
+  - `processing_machines.defaultEventsEnabled`
 - Per-device runtime (from OC):
   - `setEventsEnabled(boolean)` — toggle events for that single device instance
   - `getEventsEnabled()` — device flag only

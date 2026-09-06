@@ -41,15 +41,16 @@ src/main/java/net/ocgendustry/
   Config.java                  Forge Configuration; categories General / Adv Mutatron / Apiary / Integration Test
   Log.java                     Log4j wrapper with the [ApiaristTerminal] tag
   driver/DriverRegistry.java   single registration point (idempotent)
+  driver/DriverAdvMutatron.java  hand written: exposes the GUI-only mutation selection
+  driver/DriverApiary.java     hand written, read-only; writes go through generic OC inventory calls
   driver/MachineDriver.java    base driver for the 8 processing machines (tile class + MachineSpec)
   driver/MachineSpec.java      per-machine description: name, slots, tanks, canStart, input check
   driver/MachineEnvironment.java      THE component for those 8: final, holds every @Callback
   driver/Driver{Mutatron,Sampler,Imprinter,Replicator,Transposer,Extractor,Liquifier,MutagenProducer}.java
-  driver/DriverAdvMutatron.java
-  driver/DriverApiary.java     read-only driver; writes go through generic OC inventory calls
-  util/Stacks.java             ItemStack -> Lua table, and the cheap output signature
+                               one per machine: component name, named slots, tanks
   util/Tuning.java             clamps signalInterval, shared by every driver
   util/SignalState.java        started/finished/output decisions, pure Java, unit-tested
+  util/Stacks.java             ItemStack -> Lua table, and the cheap signature used for output events
   util/MutatronLogic.java      mutation-selection helper (no MC types) so logic is unit-testable
   client/GuiFactory|GuiModConfig.java   in-game config GUI
   command/OcGendustryCommand.java       /ocgendustry test advmutatron [fresh|reuse|all]
@@ -57,7 +58,8 @@ src/main/resources/
   mcmod.info                   version/mcversion injected by processResources
   META-INF/ocgendustry_at.cfg  access transformer named by the jar manifest (FMLAT), empty placeholder
   ocgendustry/scripts/*.lua    reference OC programs
-src/test/java/…               TuningTest, MutatronLogicTest, DriverAdvMutatronDocExamplesTest
+src/test/java/…               TuningTest, MutatronLogicTest, DriverAdvMutatronDocExamplesTest,
+                              MachineComponentNamesTest, MachineEnvironmentDocsTest
 docs/components/<name>.md      per-component callback reference
 ```
 
@@ -94,6 +96,8 @@ in Lua, on the `_finished` signal. Two tests guard it: `MachineEnvironmentDocsTe
 `eventsEnabled` flag; `canUpdate()` returns that conjunction so ticking is skipped entirely when
 off. `update()` is throttled by `signalInterval` ticks. Every component exposes
 `setEventsEnabled/getEventsEnabled/areEventsEnabled` and `setSignalInterval/applyDefaultTuning`.
+`signalInterval` throttles the output scan only: the started/finished edges are read every tick so
+a cycle shorter than the interval still raises both.
 Signals: `advmutatron_started|finished|output`, `apiary_started|finished|output`.
 
 **Signals.** The started/finished/output decisions live in `util/SignalState`, shared by all three
@@ -114,8 +118,9 @@ constants. Comments explain the *why* (game quirks), not the *what*.
 
 - Calling `ItemStack.getDisplayName()` on Forestry genetic items without genome NBT floods the log.
   Guard on `stack.hasTagCompound()` first (see `listMutations`).
-- Slot layouts are hardcoded from Gendustry sources: Mutatron `0/1` parents, `2` output, `3` labware,
-  `4..9` selectors; Apiary `0` queen, `1` drone, `2..5` upgrades, `6..14` output.
+- Slot layouts are hardcoded in the two hand written drivers: Adv Mutatron `0/1` parents, `2` output,
+  `3` labware, `4..9` selectors; Apiary `0` queen, `1` drone, `2..5` upgrades, `6..14` output. The
+  eight `MachineDriver` components read theirs from `tile.slots()` instead.
 - Component names must not collide with OpenComputers' own (`transposer`, `inventory_controller`);
   that is why the Genetic Transposer is `genetic_transposer`. `MachineComponentNamesTest` guards it.
 - The version lives in two places: `build.gradle` `version` and `OCGendustryMod.VERSION`. They must match.
