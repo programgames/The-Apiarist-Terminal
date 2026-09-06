@@ -20,6 +20,14 @@ Notes
 - Components:
   - Advanced Mutatron: `advmutatron`
   - Industrial Apiary: `industrial_apiary`
+  - Mutatron: `mutatron`
+  - Genetic Sampler: `genetic_sampler`
+  - Genetic Imprinter: `genetic_imprinter`
+  - Genetic Replicator: `genetic_replicator`
+  - Genetic Transposer: `genetic_transposer`
+  - DNA Extractor: `dna_extractor`
+  - Protein Liquifier: `protein_liquifier`
+  - Mutagen Producer: `mutagen_producer`
 - Attach an Adapter/Cable to the machine.
 - Logging tag: `[ApiaristTerminal]`. Errors will mention driver names for easier troubleshooting.
 
@@ -28,20 +36,26 @@ Full callback reference can be found in per-component docs, along with quick sta
 
 - Advanced Mutatron: `docs/components/advmutatron.md`
 - Industrial Apiary: `docs/components/industrial_apiary.md`
+- The eight other machines: `docs/components/processing_machines.md`
 
 ## Configuration
 - In-game: Mods -> The Apiarist Terminal -> Config opens a GUI to tweak defaults.
 - File: `config/ocgendustry.cfg` creates after first run. You can hand-edit values.
 
 Currently exposed defaults:
-- Advanced Mutatron: signal interval (ticks) and wait step (seconds) used by events/blocking helpers.
+- Advanced Mutatron and Industrial Apiary: signal interval (ticks) and whether events start enabled.
   - Changes apply to newly created component instances; to apply live, call `adv.applyDefaultTuning()` from an OC computer.
+- Processing machines: the same settings, shared by the eight machines of
+  `docs/components/processing_machines.md`, under the `processing_machines` category.
+- The signal interval throttles the `_output` signal only. `_started` and `_finished` are raised
+  from the machine's own tick, so a short cycle cannot slip between two samples.
 
 ### Event controls
 - Global (server/admin): `general.enableEvents` — hard-disables all OC signals from all devices when false.
 - Per-device defaults:
   - `advanced_mutatron.defaultEventsEnabled`
   - `industrial_apiary.defaultEventsEnabled`
+  - `processing_machines.defaultEventsEnabled`
 - Per-device runtime (from OC):
   - `setEventsEnabled(boolean)` — toggle events for that single device instance
   - `getEventsEnabled()` — device flag only

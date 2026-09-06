@@ -156,8 +156,16 @@ for idx, step in ipairs(plan) do
   local sel = select_output(step.out)
   if not sel then log('SKIP', 'desired output not offered by current parents') goto continue end
 
-  local okp, res = adv.selectAndProduce(sel, TIMEOUT)
-  if not okp then log('FAIL', res) goto continue end
+  -- selectAndProduce starts the cycle and returns; waiting happens here, on the signal. It used
+  -- to block until the end, which held the server thread for its whole timeout.
+  local okp, why = adv.selectAndProduce(sel)
+  if not okp then log('FAIL', why) goto continue end
+  if not event.pull(TIMEOUT, 'advmutatron_finished') then
+    log('FAIL', 'no advmutatron_finished within '..tostring(TIMEOUT)..'s')
+    goto continue
+  end
+  local res = adv.getOutput()
+  if not res then log('FAIL', 'cycle finished but the output slot is empty') goto continue end
   log('PASS produced', (res.label or res.name or '?'), 'x'..tostring(res.count))
   -- Move the queen to the apiary to obtain a princess for the next chain step
   if not move_queen_to_apiary() then
@@ -167,17 +175,27 @@ for idx, step in ipairs(plan) do
 
   -- Prefer the driver's cooperative blocker if present; else fallback to progress-based wait
   local waited = false
-  if apiary and apiary.waitForPrincess then
-    local okWait, detailsOrWhy = apiary.waitForPrincess(TIMEOUT)
-    waited = okWait
-    if not okWait then
-      log('FAIL', 'apiary.waitForPrincess:', tostring(detailsOrWhy))
-      goto continue
+  if apiary and apiary.getPrincessStatus then
+    local deadline = computer.uptime() + TIMEOUT
+    while computer.uptime() < deadline do
+      local st = apiary.getPrincessStatus()
+      if st.error then
+        log('FAIL', 'apiary error:', tostring(st.error))
+        goto continue
+      end
+      if st.automated then
+        log('FAIL', 'remove the Automation upgrade: it empties the queen slot by itself')
+        goto continue
+      end
+      if st.freed then waited = true break end
+
+      -- The wait belongs here, in Lua: the driver cannot block on the server thread.
+      event.pull(1, 'apiary_finished')
     end
-    if type(detailsOrWhy) == 'table' and detailsOrWhy.location then
-      log('apiary: princess ready at', detailsOrWhy.location, detailsOrWhy.slot and ('slot '..tostring(detailsOrWhy.slot)) or '')
-    elseif type(detailsOrWhy) == 'string' then
-      log('apiary tip:', detailsOrWhy)
+
+    if not waited then
+      log('FAIL', 'queen still alive after '..tostring(TIMEOUT)..'s')
+      goto continue
     end
   else
     waited = wait_apiary_cycle(TIMEOUT)

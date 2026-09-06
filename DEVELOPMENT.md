@@ -13,6 +13,8 @@ This document is for developers and CI maintainers working on The Apiarist Termi
 - `src/main/java/net/ocgendustry/driver/DriverRegistry.java` — Central place to register all drivers (add more here as you extend support).
 - `src/main/java/net/ocgendustry/driver/DriverAdvMutatron.java` — Driver for Advanced Mutatron (component: `advmutatron`).
 - `src/main/java/net/ocgendustry/driver/DriverApiary.java` — Read-only driver for Industrial Apiary (component: `industrial_apiary`).
+- `src/main/java/net/ocgendustry/driver/MachineDriver.java` / `MachineEnvironment.java` / `ItemMachineEnvironment.java` — Shared base for the eight processing machines.
+- `src/main/java/net/ocgendustry/driver/Driver{Mutatron,Sampler,Imprinter,Replicator,Transposer,Extractor,Liquifier,MutagenProducer}.java` — One small class per processing machine: component name, slots, tanks.
 - `src/main/java/net/ocgendustry/util/` — Pure-Java helpers (`Tuning` clamps, `MutatronLogic` selection) kept free of MC types so they are unit-testable.
 - `src/main/java/net/ocgendustry/client/` — Forge config GUI (`GuiFactory`, `GuiModConfig`).
 - `src/main/java/net/ocgendustry/command/OcGendustryCommand.java` — Gated in-game test harness (`/ocgendustry test advmutatron [fresh|reuse|all]`).
@@ -83,6 +85,14 @@ On Windows, use `gradlew.bat` instead of `./gradlew`.
 - Artifact output: `build/libs/apiarist-terminal-<version>.jar`.
 
 ## Extending to more Gendustry machines
+Most Gendustry machines extend bdew's `TileBaseProcessor` and implement `TileWorker`, so they all
+have progress, a working flag, an energy buffer and a sided inventory. For those, subclass
+`MachineDriver` and describe the machine — component name, named slots, tanks — instead of writing
+a driver from scratch; see `DriverSampler` for the shortest example. Extend `ItemMachineEnvironment`
+rather than `MachineEnvironment` when the tile declares `canStart()`.
+
+Write a driver by hand only when the machine exposes state the shared component cannot reach, the
+way the Advanced Mutatron exposes its mutation selection:
 - Create a `DriverXxx extends DriverSidedTileEntity` with a nested
   `public static final class Environment extends AbstractManagedEnvironment implements NamedBlock`.
 - Type strongly against the relevant Gendustry tile class (no reflection); return `priority() = 10`
@@ -92,7 +102,10 @@ On Windows, use `gradlew.bat` instead of `./gradlew`.
   `docs/components/<component>.md` page.
 - Gate event emission on `Config.enableEvents` (global) AND the per-device `eventsEnabled` flag, and
   return that conjunction from `canUpdate()`.
-- Use `ctx.pause(waitStepSeconds)` for blocking helpers; never `Thread.sleep`.
+- Never make a callback wait. `Callback.direct()` defaults to `false`, so callbacks run on the
+  server thread, and `Context.pause()` does not suspend the call — it schedules a pause for after
+  it returns. A loop around it freezes the game for the whole timeout. Emit a signal and let the
+  script wait with `event.pull`.
 - Clamp tunables through `net.ocgendustry.util.Tuning`; add a config category if the driver has defaults.
 
 ## Troubleshooting

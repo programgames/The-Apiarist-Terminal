@@ -17,21 +17,26 @@ public final class Config {
     public static final String CAT_GENERAL = "general";
     public static final String CAT_ADV_MUTATRON = "advanced_mutatron";
     public static final String CAT_APIARY = "industrial_apiary";
+    public static final String CAT_PROCESSORS = "processing_machines";
     public static final String CAT_INTEGRATION = "integration_test";
 
     // Advanced Mutatron defaults
     public static int advMutatronSignalInterval = 2;     // ticks
-    public static double advMutatronWaitInterval = 0.2;  // seconds
     public static int advMutatronSignalIntervalMax = 40; // cap safety
 
     // Apiary defaults
     public static int apiarySignalInterval = 2;          // ticks
-    public static double apiaryWaitInterval = 0.2;       // seconds
     public static int apiarySignalIntervalMax = 40;      // cap safety
+
+    // Shared defaults for the processing machines (everything but the Advanced Mutatron and the
+    // Industrial Apiary, which keep their own category because their drivers are hand written).
+    public static int processorSignalInterval = 2;          // ticks
+    public static int processorSignalIntervalMax = 40;      // cap safety
 
     // Per-device default for events (applied on environment creation / applyDefaultTuning)
     public static boolean advMutatronDefaultEventsEnabled = true;
     public static boolean apiaryDefaultEventsEnabled = true;
+    public static boolean processorDefaultEventsEnabled = true;
 
     // Integration test harness (disabled by default; gated for safety)
     public static boolean enableIntegrationHarness = false;
@@ -47,8 +52,18 @@ public final class Config {
         syncFromFile();
     }
 
+    // applyDefaultTuning() reaches this from Lua, on the server thread. A script calling it in a
+    // loop would otherwise reload and possibly rewrite the file on every iteration, so repeated
+    // calls inside this window reuse what was just read.
+    private static final long RELOAD_COOLDOWN_MS = 1000L;
+    private static long lastSync = 0L;
+
     public static void syncFromFile() {
         if (config == null) return;
+
+        long now = System.currentTimeMillis();
+        if (now - lastSync < RELOAD_COOLDOWN_MS) return;
+        lastSync = now;
 
         config.load();
         readValues(config);
@@ -71,6 +86,8 @@ public final class Config {
         cfg.setCategoryComment(CAT_GENERAL, "General settings for The Apiarist Terminal.");
         cfg.setCategoryComment(CAT_ADV_MUTATRON, "Advanced Mutatron driver defaults.");
         cfg.setCategoryComment(CAT_APIARY, "Industrial Apiary driver defaults.");
+        cfg.setCategoryComment(CAT_PROCESSORS, "Shared defaults for the Gendustry processing machines "
+            + "(mutatron, genetic sampler/imprinter/replicator/transposer, dna extractor, protein liquifier, mutagen producer).");
         cfg.setCategoryComment(CAT_INTEGRATION, "In-game integration test harness (creative only; keep disabled on normal worlds).");
 
         // General
@@ -90,14 +107,6 @@ public final class Config {
             advMutatronSignalIntervalMax,
             "Time between checks for OC signals (in ticks). Lower = more responsive, higher = less overhead."
         );
-        advMutatronWaitInterval = cfg.getFloat(
-            "waitStepSeconds",
-            CAT_ADV_MUTATRON,
-            (float) advMutatronWaitInterval,
-            0.05f,
-            5.0f,
-            "Time between checks for blocking wait steps (in seconds)."
-        );
         advMutatronDefaultEventsEnabled = cfg.getBoolean(
             "defaultEventsEnabled",
             CAT_ADV_MUTATRON,
@@ -114,19 +123,27 @@ public final class Config {
             apiarySignalIntervalMax,
             "Time between checks for OC signals (in ticks). Lower = more responsive, higher = less overhead."
         );
-        apiaryWaitInterval = cfg.getFloat(
-            "waitStepSeconds",
-            CAT_APIARY,
-            (float) apiaryWaitInterval,
-            0.05f,
-            5.0f,
-            "Time between checks for blocking wait steps (in seconds)."
-        );
         apiaryDefaultEventsEnabled = cfg.getBoolean(
             "defaultEventsEnabled",
             CAT_APIARY,
             apiaryDefaultEventsEnabled,
             "Default per-device eventsEnabled state for newly created Industrial Apiary components."
+        );
+
+        // Processing machines (shared by every generic machine driver)
+        processorSignalInterval = cfg.getInt(
+            "signalIntervalTicks",
+            CAT_PROCESSORS,
+            processorSignalInterval,
+            1,
+            processorSignalIntervalMax,
+            "Time between checks for OC signals (in ticks). Lower = more responsive, higher = less overhead."
+        );
+        processorDefaultEventsEnabled = cfg.getBoolean(
+            "defaultEventsEnabled",
+            CAT_PROCESSORS,
+            processorDefaultEventsEnabled,
+            "Default per-device eventsEnabled state for newly created processing machine components."
         );
 
         // Integration

@@ -21,15 +21,19 @@ import forestry.api.apiculture.IBeekeepingLogic;
 import forestry.api.core.IErrorLogic;
 import forestry.api.apiculture.IBeeRoot;
 import forestry.api.apiculture.EnumBeeType;
+import forestry.api.apiculture.EnumBeeChromosome;
+import forestry.api.apiculture.IAlleleBeeSpecies;
+import forestry.api.genetics.IAllele;
+import forestry.api.genetics.IChromosomeType;
 import forestry.api.genetics.ISpeciesRoot;
 import forestry.api.genetics.AlleleManager;
 import net.ocgendustry.Config;
+import net.ocgendustry.util.SignalState;
 import net.ocgendustry.util.Tuning;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * OpenComputers driver for Gendustry Industrial Apiary (TileApiary).
@@ -61,11 +65,10 @@ public final class DriverApiary extends DriverSidedTileEntity {
     public static final class Environment extends AbstractManagedEnvironment implements NamedBlock {
         private final TileApiary tile;
         private final String componentName = "industrial_apiary";
-        private double waitStepSeconds = 0.2; // cooperative wait step for blocking helpers
-        private int signalInterval = 2; // ticks
-        private int tickCounter = 0;
-        private boolean lastWorking = false;
-        private String lastOutputSig = "";
+            // Signal bookkeeping, shared with the other drivers and unit-tested in SignalStateTest.
+        // Primed in the constructor: a default the machine never held would make the first tick
+        // raise a signal that describes nothing.
+        private final SignalState signals;
 
         // Per-device toggle in addition to global Config.enableEvents
         private boolean eventsEnabled = true;
@@ -83,9 +86,22 @@ public final class DriverApiary extends DriverSidedTileEntity {
                 .withComponent(componentName, Visibility.Network)
                 .create());
 
-            signalInterval = Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax);
-            waitStepSeconds = Tuning.clampWaitStep(Config.apiaryWaitInterval);
+            signals = new SignalState(
+                Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax),
+                currentlyWorking(),
+                signatureOutputs());
+
             eventsEnabled = Config.apiaryDefaultEventsEnabled;
+        }
+
+        /** The apiary reports progress rather than a flag; a cycle is between 0 and 100 percent. */
+        private boolean currentlyWorking() {
+            IBeekeepingLogic logic = tile.getBeekeepingLogic();
+            if (logic == null) return false;
+
+            float pct = logic.getBeeProgressPercent();
+
+            return pct > 0f && pct < 100f;
         }
 
         @Override
@@ -107,24 +123,21 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public void update() {
             if (!Config.enableEvents || !eventsEnabled) return;
 
-            tickCounter++;
-            if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
-
-            boolean working = false;
-            IBeekeepingLogic logic = tile.getBeekeepingLogic();
-            if (logic != null) {
-                float pct = logic.getBeeProgressPercent();
-                working = pct > 0f && pct < 100f;
+            switch (signals.sample(currentlyWorking())) {
+                case STARTED:
+                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_started"});
+                    break;
+                case FINISHED:
+                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_finished"});
+                    break;
+                default:
+                    break;
             }
 
-            if (working && !lastWorking && node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_started"});
-            if (!working && lastWorking && node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_finished"});
-            lastWorking = working;
+            // Walking the nine output slots is the expensive half, so that one is throttled.
+            if (!signals.dueForOutputScan()) return;
 
-            // Emit output change
-            String sig = signatureOutputs();
-            if (!sig.equals(lastOutputSig)) {
-                lastOutputSig = sig;
+            if (signals.outputChanged(signatureOutputs())) {
                 if (node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_output"});
             }
         }
@@ -265,16 +278,9 @@ public final class DriverApiary extends DriverSidedTileEntity {
             return new Object[]{ (logic != null) ? (logic.getBeeProgressPercent() / 100.0f) : 0.0f };
         }
 
-        @Callback(doc = "function(seconds:number):boolean -- Set the cooperative wait step used by blocking operations (default 0.2s, range 0.05..5). Lower = more responsive, higher = less overhead.")
-        public Object[] setWaitInterval(Context ctx, Arguments args) {
-            waitStepSeconds = Tuning.clampWaitStep(args.checkDouble(0));
-
-            return new Object[]{ true };
-        }
-
         @Callback(doc = "function(ticks:number):boolean -- Set how often signals are emitted (every N ticks, min 1). Lower = more responsive, higher = less overhead.")
         public Object[] setSignalInterval(Context ctx, Arguments args) {
-            signalInterval = Tuning.clampSignalInterval(args.checkInteger(0), Config.apiarySignalIntervalMax);
+            signals.setSignalInterval(Tuning.clampSignalInterval(args.checkInteger(0), Config.apiarySignalIntervalMax));
 
             return new Object[]{ true };
         }
@@ -283,53 +289,166 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public Object[] applyDefaultTuning(Context ctx, Arguments args) {
             Config.syncFromFile();
 
-            signalInterval = Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax);
-            waitStepSeconds = Tuning.clampWaitStep(Config.apiaryWaitInterval);
+            signals.setSignalInterval(
+                Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax));
             eventsEnabled = Config.apiaryDefaultEventsEnabled;
 
             return new Object[]{ true };
         }
 
-        @Callback(doc = "function([timeout:number=180]):boolean,string? -- Wait (non-freezing) until the current queen dies and the queen slot is freed. If a princess is inserted, this continues waiting until a queen is bred and killed, or the timeout elapses. Returns false,reason on timeout or if no princess/queen present.")
-        public Object[] waitForPrincess(Context ctx, Arguments args) {
-            double timeoutSec = args.count() > 0 ? Math.max(0, args.checkDouble(0)) : 180.0;
+        @Callback(doc = "function():table -- Non-blocking status of the queen slot: { occupied:boolean, type:string, freed:boolean, automated:boolean, error?:string }. freed is true once the queen slot is empty, which is what a breeding cycle waits for; wait for it with event.pull(timeout, \"apiary_finished\") rather than blocking, then read this again.")
+        public Object[] getPrincessStatus(Context ctx, Arguments args) {
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
 
-            // Resolve bee root to distinguish queen vs princess
+            ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
+            if (!(root instanceof IBeeRoot)) {
+                out.put("occupied", false);
+                out.put("type", "unknown");
+                out.put("freed", false);
+                out.put("automated", false);
+                out.put("error", "bee root not available");
+
+                return new Object[]{ out };
+            }
+
+            IBeeRoot beeRoot = (IBeeRoot) root;
+            ItemStack slot0 = getStackInSlot(SLOT_QUEEN);
+            boolean occupied = slot0 != null && !slot0.isEmpty();
+
+            String type = "none";
+            if (occupied) {
+                if (beeRoot.isMember(slot0, EnumBeeType.QUEEN)) type = "queen";
+                else if (beeRoot.isMember(slot0, EnumBeeType.PRINCESS)) type = "princess";
+                else type = "other";
+            }
+
+            out.put("occupied", occupied);
+            out.put("type", type);
+            out.put("freed", !occupied);
+
+            // An automation upgrade empties the queen slot by itself, so a script watching for a
+            // freed slot would draw the wrong conclusion. Surface it rather than let it mislead.
+            ApiaryModifiers mods = tile.getModifiers();
+            out.put("automated", mods != null && mods.isAutomated);
+
+            IErrorLogic err = tile.getErrorLogic();
+            if (err != null && err.hasErrors()) {
+                for (forestry.api.core.IErrorState st : err.getErrorStates()) {
+                    if (st != null && st.getUniqueName() != null) {
+                        out.put("error", st.getUniqueName());
+                        break;
+                    }
+                }
+                if (!out.containsKey("error")) out.put("error", "apiary error");
+            }
+
+            return new Object[]{ out };
+        }
+
+        /**
+         * Resolves a bee species from a UID, an allele name or a display name.
+         *
+         * Walks Forestry's registry instead of building a UID by concatenation: species are
+         * contributed by many mods (Magic Bees, Extra Bees, Career Bees...), each with its own
+         * prefix, so "forestry.species" + name only ever finds the vanilla Forestry ones.
+         */
+        private static IAlleleBeeSpecies findSpecies(String wanted) {
+            IAllele direct = AlleleManager.alleleRegistry.getAllele(wanted);
+            if (direct instanceof IAlleleBeeSpecies) return (IAlleleBeeSpecies) direct;
+
+            for (IAllele allele : AlleleManager.alleleRegistry.getRegisteredAlleles(EnumBeeChromosome.SPECIES)) {
+                if (!(allele instanceof IAlleleBeeSpecies)) continue;
+
+                IAlleleBeeSpecies species = (IAlleleBeeSpecies) allele;
+                if (wanted.equalsIgnoreCase(species.getUID())
+                    || wanted.equalsIgnoreCase(species.getAlleleName())
+                    || wanted.equalsIgnoreCase(displayName(species))) {
+                    return species;
+                }
+            }
+
+            return null;
+        }
+
+        /** Display name of an allele, falling back to its UID: some modded alleles translate client-side only. */
+        private static String displayName(IAllele allele) {
+            try {
+                String name = allele.getName();
+                if (name != null && !name.isEmpty()) return name;
+            } catch (RuntimeException ignored) {
+                // Fall through to the UID, which is always available.
+            }
+
+            return allele.getUID();
+        }
+
+        private static LinkedHashMap<String, Object> alleleInfo(IAllele allele) {
+            LinkedHashMap<String, Object> info = new LinkedHashMap<>();
+
+            info.put("uid", allele.getUID());
+            info.put("name", displayName(allele));
+            info.put("dominant", allele.isDominant());
+
+            return info;
+        }
+
+        @Callback(doc = "function(species:string):table|boolean,string? -- Returns the default genome template of a bee species, keyed by the chromosome name Forestry itself uses, lower_snake_case (species, speed, lifespan, fertility, temperature_tolerance, never_sleeps, humidity_tolerance, tolerates_rain, cave_dwelling, flower_provider, flowering, territory, effect), each { uid, name, dominant }. The species is accepted as an allele UID, an allele name or a display name. Returns false plus a reason when it is unknown or carries no template.")
+        public Object[] getSpeciesTemplate(Context ctx, Arguments args) {
+            String wanted = args.checkString(0);
+
             ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
             if (!(root instanceof IBeeRoot)) return new Object[]{ false, "bee root not available" };
 
-            IBeeRoot beeRoot = (IBeeRoot) root;
+            IAlleleBeeSpecies species = findSpecies(wanted);
+            if (species == null) return new Object[]{ false, "unknown species: " + wanted };
 
-            // Require a queen to be present initially
-            ItemStack slot0 = getStackInSlot(SLOT_QUEEN);
-            if (slot0 == null || slot0.isEmpty() || (!beeRoot.isMember(slot0, EnumBeeType.QUEEN) && !beeRoot.isMember(slot0, EnumBeeType.PRINCESS))) {
-                return new Object[]{ false, "no princess/queen in slot" };
+            IAllele[] template = root.getTemplate(species.getUID());
+            if (template == null) return new Object[]{ false, "no template registered for " + species.getUID() };
+
+            // Walk the karyotype rather than the array: it names each chromosome and gives the
+            // index to read, so the answer stays correct if Forestry ever reorders them.
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+            for (IChromosomeType type : root.getKaryotype()) {
+                int idx = type.ordinal();
+                IAllele allele = (idx >= 0 && idx < template.length) ? template[idx] : null;
+                if (allele == null) continue; // a template may leave a chromosome unset
+
+                out.put(type.getName(), alleleInfo(allele));
             }
 
-            long deadline = System.currentTimeMillis() + (long) (timeoutSec * 1000L);
+            return new Object[]{ out };
+        }
 
-            while (System.currentTimeMillis() < deadline) {
-                // Success when queen slot becomes empty (queen died)
-                ItemStack cur = getStackInSlot(SLOT_QUEEN);
-                if (cur == null || cur.isEmpty()) return new Object[]{ true };
+        @Callback(doc = "function([filter:string]):table -- Lists every registered bee species as an array of { uid, name, dominant, hasTemplate }, read from Forestry's allele registry so species added by other mods are included. The optional filter keeps those whose uid or name contains it, case-insensitively.")
+        public Object[] listSpeciesTemplates(Context ctx, Arguments args) {
+            // optString rather than count() + checkString: a script that passes nil explicitly
+            // still counts as one argument, and checkString would then refuse it.
+            String raw = args.optString(0, null);
+            String filter = (raw == null || raw.isEmpty()) ? null : raw.toLowerCase();
 
-                ApiaryModifiers m2 = tile.getModifiers();
-                if (m2 != null && m2.isAutomated) return new Object[]{ false, "automation upgrade should not be used" };
+            ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
+            if (!(root instanceof IBeeRoot)) return new Object[]{ false, "bee root not available" };
 
-                IErrorLogic err = tile.getErrorLogic();
-                if (err != null && err.hasErrors()) {
-                    // Surface first error for better diagnostics
-                    for (forestry.api.core.IErrorState st : err.getErrorStates()) {
-                        if (st != null && st.getUniqueName() != null) { return new Object[]{ false, st.getUniqueName()}; }
-                    }
+            List<Object> arr = new ArrayList<>();
+            for (IAllele allele : AlleleManager.alleleRegistry.getRegisteredAlleles(EnumBeeChromosome.SPECIES)) {
+                if (!(allele instanceof IAlleleBeeSpecies)) continue;
 
-                    return new Object[]{ false, "apiary error" };
+                IAlleleBeeSpecies species = (IAlleleBeeSpecies) allele;
+                String uid = species.getUID();
+                String name = displayName(species);
+
+                if (filter != null
+                    && !uid.toLowerCase().contains(filter)
+                    && !name.toLowerCase().contains(filter)) {
+                    continue;
                 }
 
-                ctx.pause(waitStepSeconds);
+                LinkedHashMap<String, Object> info = alleleInfo(species);
+                info.put("hasTemplate", root.getTemplate(uid) != null);
+                arr.add(info);
             }
 
-            return new Object[]{ false, "timeout" };
+            return new Object[]{ arr.toArray() };
         }
 
         @Callback(doc = "function():table -- Returns effective modifiers from upgrades: {production, lifespan, territory, mutation, flowering, geneticDecay, isSealed, isSelfLighted, isSunlightSimulated, isAutomated, isCollectingPollen, energy, temperature, humidity}")

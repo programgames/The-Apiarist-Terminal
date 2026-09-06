@@ -23,6 +23,7 @@ public class GuiModConfig extends GuiConfig {
             list.add(new ConfigElement(Config.config.getCategory(Config.CAT_GENERAL)));
             list.add(new ConfigElement(Config.config.getCategory(Config.CAT_ADV_MUTATRON)));
             list.add(new ConfigElement(Config.config.getCategory(Config.CAT_APIARY)));
+            list.add(new ConfigElement(Config.config.getCategory(Config.CAT_PROCESSORS)));
             list.add(new ConfigElement(Config.config.getCategory(Config.CAT_INTEGRATION)));
         }
 

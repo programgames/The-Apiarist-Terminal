@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.ocgendustry.Config;
 import net.ocgendustry.util.MutatronLogic;
+import net.ocgendustry.util.SignalState;
 import net.ocgendustry.util.Tuning;
 
 public final class DriverAdvMutatron extends DriverSidedTileEntity {
@@ -63,8 +64,11 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
                 .create());
 
             // Apply defaults from config on environment create
-            signalInterval = Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
-            waitStepSeconds = Tuning.clampWaitStep(Config.advMutatronWaitInterval);
+            signals = new SignalState(
+                Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax),
+                tile.isWorking(),
+                signature(tile.getStackInSlot(2)));
+
             eventsEnabled = Config.advMutatronDefaultEventsEnabled;
         }
 
@@ -86,12 +90,10 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             tile.setMutation(key);
         }
 
-        // Track state to emit OpenComputers signals without blocking.
-        private boolean lastWorking = false;
-        private String lastOutSig = "";
-        private int signalInterval = 2; // emit signals every N ticks (default 2)
-        private int tickCounter = 0;
-        private double waitStepSeconds = 0.2; // cooperative wait step used by blocking methods
+        // Signal bookkeeping, shared with the other drivers and unit-tested in SignalStateTest.
+        // Primed from the machine in the constructor: starting from a value it never held makes
+        // the first tick raise a signal that describes nothing.
+        private final SignalState signals;
 
         // Per-device toggle in addition to global Config.enableEvents
         private boolean eventsEnabled = true;
@@ -107,25 +109,22 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             // Respect global config for event emissions
             if (!Config.enableEvents || !eventsEnabled) return;
 
-            // Throttle update frequency for performance if configured
-            tickCounter++;
-            if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
-
-            boolean working = tile.isWorking();
-
-            if (working && !lastWorking) {
-                if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_started"});
-            } else if (!working && lastWorking) {
-                if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_finished"});
+            switch (signals.sample(tile.isWorking())) {
+                case STARTED:
+                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_started"});
+                    break;
+                case FINISHED:
+                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_finished"});
+                    break;
+                default:
+                    break;
             }
 
-            lastWorking = working;
+            // Reading the output slot is the expensive half, so that one is throttled.
+            if (!signals.dueForOutputScan()) return;
 
-            // Detect output changes (slot 2) and emit an event with the new stack info.
             ItemStack out = tile.getStackInSlot(2);
-            String sig = signature(out);
-            if (!sig.equals(lastOutSig)) {
-                lastOutSig = sig;
+            if (signals.outputChanged(signature(out))) {
                 if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_output", stackInfo(out)});
             }
         }
@@ -231,14 +230,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         @Callback(doc = "function(ticks:number):boolean -- Set how often signals are emitted (every N ticks, min 1). Lower = more responsive, higher = less overhead.")
         public Object[] setSignalInterval(Context ctx, Arguments args) {
             int n = Math.max(1, args.checkInteger(0));
-            signalInterval = Tuning.clampSignalInterval(n, Config.advMutatronSignalIntervalMax);
-
-            return new Object[]{ true };
-        }
-
-        @Callback(doc = "function(seconds:number):boolean -- Set the cooperative wait step used by blocking operations (default 0.2s, range 0.05..5). Lower = more responsive, higher = less overhead.")
-        public Object[] setWaitInterval(Context ctx, Arguments args) {
-            waitStepSeconds = Tuning.clampWaitStep(args.checkDouble(0));
+            signals.setSignalInterval(Tuning.clampSignalInterval(n, Config.advMutatronSignalIntervalMax));
 
             return new Object[]{ true };
         }
@@ -247,8 +239,8 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         public Object[] applyDefaultTuning(Context ctx, Arguments args) {
             Config.syncFromFile();
 
-            signalInterval = Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
-            waitStepSeconds = Tuning.clampWaitStep(Config.advMutatronWaitInterval);
+            signals.setSignalInterval(
+                Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax));
             eventsEnabled = Config.advMutatronDefaultEventsEnabled;
 
             return new Object[]{ true };
@@ -342,12 +334,10 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             return new Object[]{ tile.tryStart() };
         }
 
-        @Callback(doc = "function(n:number[, timeout:number=60]):boolean,table|string? -- Select mutation (1-based index from listMutations or raw slot key), wait until finished without freezing, then return true and the output stack {name,label?,nbt?,count}; on failure returns false,reason.")
+        @Callback(doc = "function(n:number):boolean,string? -- Select mutation (1-based index from listMutations or raw slot key) and start it, returning immediately; wait for the advmutatron_finished signal and then read getOutput(). This used to block until the cycle ended, which froze the server thread for the whole timeout.")
         public Object[] selectAndProduce(Context ctx, Arguments args) {
             int n = args.checkInteger(0);
-            double timeoutSec = args.count() > 1 ? Math.max(0, args.checkDouble(1)) : 60.0;
 
-            // Resolve selection key
             Map<Integer, ItemStack> map = getPossibleMutations();
             if (map == null || map.isEmpty()) return new Object[]{ false, "no mutations available" };
 
@@ -362,47 +352,12 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             setMutation(keyToUse);
             tile.tryStart();
 
-            // Wait cooperatively until processing starts (if not immediate) and then until it finishes
-            long deadline = System.currentTimeMillis() + (long) (timeoutSec * 1000L);
-
-            // Wait for start
-            while (!tile.isWorking()) {
-                if (System.currentTimeMillis() > deadline) return new Object[]{ false, "timeout (not started)" };
-
-                ctx.pause(waitStepSeconds);
-            }
-
-            // Wait for finish
-            while (tile.isWorking()) {
-                if (System.currentTimeMillis() > deadline) return new Object[]{ false, "timeout" };
-
-                ctx.pause(waitStepSeconds);
-            }
-
-            // Return produced item (if any) from output slot 2
-            ItemStack out = tile.getStackInSlot(2);
-            if (out == null || out.isEmpty()) return new Object[]{ false, "no output" };
-
-            return new Object[]{ true, stackInfo(out) };
+            return new Object[]{ true };
         }
 
-        @Callback(doc = "function(n:number):boolean,string? -- Select mutation (1-based index from listMutations or raw slot key) and return immediately; use events advmutatron_started/finished/output to react.")
+        @Callback(doc = "function(n:number):boolean,string? -- Alias of selectAndProduce, kept for scripts written when selectAndProduce was the blocking variant.")
         public Object[] selectAndProduceAsync(Context ctx, Arguments args) {
-            int n = args.checkInteger(0);
-
-            Map<Integer, ItemStack> map = getPossibleMutations();
-            if (map == null || map.isEmpty()) return new Object[]{ false, "no mutations available" };
-
-            Integer keyToUse = resolveSelectionKey(n, map);
-            if (keyToUse == null) return new Object[]{ false, "invalid index/key" };
-
-            String why = checkPreconditionsBeforeSelect();
-            if (why != null) return new Object[]{ false, why };
-
-            setMutation(keyToUse);
-            tile.tryStart();
-
-            return new Object[]{ true };
+            return selectAndProduce(ctx, args);
         }
     }
 }

@@ -29,12 +29,18 @@ Use OpenComputers' inventory pushItems/pullItems with these slot indices.
   - { hasErrors:boolean, errors:string[] }.
 - setSignalInterval(ticks:number): boolean
   - Emit signals every N ticks (min 1). Defaults from config.
-- setWaitInterval(seconds:number): boolean
-  - Cooperative wait step (default ~0.2s).
 - applyDefaultTuning(): boolean
   - Reload and apply defaults from the mod config.
-- waitForPrincess([timeout:number=180]): boolean, string?
-  - Waits until the queen dies and the queen slot becomes empty. If an Automation upgrade is present, the method will automatically fail as it is intended for killing queen only. Returns false,reason on timeout or if no princess/queen present.
+- getSpeciesTemplate(species:string): table | false, string
+  - The default genome of a bee species: one entry per chromosome, keyed by the name Forestry uses — lower_snake_case, not the enum constant: `species`, `speed`, `lifespan`, `fertility`, `temperature_tolerance`, `never_sleeps`, `humidity_tolerance`, `tolerates_rain`, `cave_dwelling`, `flower_provider`, `flowering`, `territory`, `effect`. Each is `{ uid, name, dominant }`.
+  - `species` may be an allele UID (`forestry.speciesForest`), an allele name, or a display name; it is resolved through Forestry's registry, so species from Magic Bees, Extra Bees and the rest are found too.
+  - The chromosome list comes from the species root's karyotype, not from a fixed order, so it stays correct if Forestry reorders them.
+- listSpeciesTemplates([filter:string]): table
+  - Every registered bee species as `{ uid, name, dominant, hasTemplate }`, read from Forestry's allele registry. **Not** built by concatenating a prefix and a name: species come from many mods with different prefixes, and guessing a UID only ever finds the vanilla Forestry ones.
+  - `filter` keeps the species whose uid or name contains it, case-insensitively. A large pack registers hundreds of species, so filter when you can.
+- getPrincessStatus(): table
+  - Non-blocking view of the queen slot: `{ occupied, type, freed, automated, error? }`. `type` is `queen`, `princess`, `other` or `none`; `freed` is true once the slot is empty, which is what a breeding cycle ends with; `automated` reports the Automation upgrade, which empties the slot by itself and would make `freed` mean something else; `error` carries the first Forestry error state when there is one.
+  - This replaces `waitForPrincess([timeout])`, which blocked until the queen died. It could not work: a callback runs on the server thread and `Context.pause()` does not suspend it, so the loop froze the whole game for its timeout. Wait on the `apiary_finished` signal instead, then read this.
 
 ## Signals
 - apiary_started
@@ -102,7 +108,27 @@ while true do
   os.sleep(2)
 end
 
--- Wait for the queen to die (reuse helper):
--- local ok, res = apiary.waitForPrincess(120)
--- if not ok then print(res) end
+-- Wait for the queen to die, without blocking the server:
+-- local event = require("event")
+-- repeat
+--   if not event.pull(120, "apiary_finished") then print("timeout") break end
+--   local st = apiary.getPrincessStatus()
+--   if st.error then print("error:", st.error) break end
+--   if st.automated then print("remove the Automation upgrade") break end
+-- until st.freed
+```
+
+## Reading a species genome
+
+```lua
+local apiary = require("component").industrial_apiary
+
+for _, sp in ipairs(apiary.listSpeciesTemplates("forest")) do
+  print(sp.uid, sp.name, sp.hasTemplate and "has template" or "no template")
+end
+
+local genome = apiary.getSpeciesTemplate("forestry.speciesForest")
+for chromosome, allele in pairs(genome) do
+  print(chromosome, allele.name, allele.dominant and "dominant" or "recessive")
+end
 ```
