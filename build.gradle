@@ -86,7 +86,12 @@ dependencies {
 
     // APIs required by Gendustry's tile classes during compilation
     compileOnly 'net.industrial-craft:industrialcraft-2:2.8.170-ex112:api'
-    compileOnly 'cofh:RedstoneFlux:1.12-2.1.0.6:universal'
+    // deobfCompile, not compileOnly: this is a full mod jar, not just an API, and it has to
+    // be on the run classpath deobfuscated. IntelliJ puts compileOnly dependencies on the
+    // classpath anyway (it maps them to Provided scope), so a second copy under run/mods
+    // made FML refuse to start on a duplicate mod id -- the same rule as Gendustry, bdlib
+    // and Forestry: a mod on the classpath never goes in run/mods too.
+    deobfCompile 'cofh:RedstoneFlux:1.12-2.1.0.6:universal'
 
     // Forestry (API is packaged in main jar for 1.12.2); needed for interfaces like IBeekeepingLogic/IErrorLogic
     deobfCompile 'net.sengir.forestry:forestry_1.12.2:5.8.2.422'
@@ -198,7 +203,6 @@ dependencies {
     devMods "curse.maven:opencomputers-223008:6057571"          // OpenComputers 1.8.7
     devMods "curse.maven:binnies-mods-223525:2916129"           // Binnie's: Extra Bees, Genetics
     devMods "curse.maven:codechicken-lib-1-8-242818:2779848"    // required by Thermal Expansion
-    devMods "curse.maven:redstone-flux-270789:2920436"
     devMods "curse.maven:cofh-core-69162:2920433"
     devMods "curse.maven:cofh-world-271384:2920434"
     devMods "curse.maven:thermal-foundation-222880:2926428"
