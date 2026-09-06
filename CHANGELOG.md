@@ -23,6 +23,15 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   `testall.lua` walks the processing machines checking the expectations specific to each;
   `machine_test.lua` runs one machine through a full cycle and watches its signals.
 
+### Added
+- `industrial_apiary` gains `getSpeciesTemplate(species)`, returning a bee species' default genome
+  as its thirteen chromosomes keyed by the name Forestry uses, and `listSpeciesTemplates([filter])`,
+  which enumerates species from Forestry's allele registry instead of guessing a UID by
+  concatenation - so species added by other mods are listed too. On a large pack that is the
+  difference between 44 species and 408. Both accept a UID, an allele name or a display name.
+- `species.lua`, which browses that registry from the game: an overview grouped by the mod that
+  registered each species, a filtered listing, one genome in karyotype order, and a dump to file.
+
 ### Changed
 - The started/finished/output decisions moved to `util/SignalState`, shared by all three drivers
   and covered by `SignalStateTest`. Until now the suite only checked names and doc strings, and

@@ -21,6 +21,10 @@ import forestry.api.apiculture.IBeekeepingLogic;
 import forestry.api.core.IErrorLogic;
 import forestry.api.apiculture.IBeeRoot;
 import forestry.api.apiculture.EnumBeeType;
+import forestry.api.apiculture.EnumBeeChromosome;
+import forestry.api.apiculture.IAlleleBeeSpecies;
+import forestry.api.genetics.IAllele;
+import forestry.api.genetics.IChromosomeType;
 import forestry.api.genetics.ISpeciesRoot;
 import forestry.api.genetics.AlleleManager;
 import net.ocgendustry.Config;
@@ -339,6 +343,112 @@ public final class DriverApiary extends DriverSidedTileEntity {
             }
 
             return new Object[]{ out };
+        }
+
+        /**
+         * Resolves a bee species from a UID, an allele name or a display name.
+         *
+         * Walks Forestry's registry instead of building a UID by concatenation: species are
+         * contributed by many mods (Magic Bees, Extra Bees, Career Bees...), each with its own
+         * prefix, so "forestry.species" + name only ever finds the vanilla Forestry ones.
+         */
+        private static IAlleleBeeSpecies findSpecies(String wanted) {
+            IAllele direct = AlleleManager.alleleRegistry.getAllele(wanted);
+            if (direct instanceof IAlleleBeeSpecies) return (IAlleleBeeSpecies) direct;
+
+            for (IAllele allele : AlleleManager.alleleRegistry.getRegisteredAlleles(EnumBeeChromosome.SPECIES)) {
+                if (!(allele instanceof IAlleleBeeSpecies)) continue;
+
+                IAlleleBeeSpecies species = (IAlleleBeeSpecies) allele;
+                if (wanted.equalsIgnoreCase(species.getUID())
+                    || wanted.equalsIgnoreCase(species.getAlleleName())
+                    || wanted.equalsIgnoreCase(displayName(species))) {
+                    return species;
+                }
+            }
+
+            return null;
+        }
+
+        /** Display name of an allele, falling back to its UID: some modded alleles translate client-side only. */
+        private static String displayName(IAllele allele) {
+            try {
+                String name = allele.getName();
+                if (name != null && !name.isEmpty()) return name;
+            } catch (RuntimeException ignored) {
+                // Fall through to the UID, which is always available.
+            }
+
+            return allele.getUID();
+        }
+
+        private static LinkedHashMap<String, Object> alleleInfo(IAllele allele) {
+            LinkedHashMap<String, Object> info = new LinkedHashMap<>();
+
+            info.put("uid", allele.getUID());
+            info.put("name", displayName(allele));
+            info.put("dominant", allele.isDominant());
+
+            return info;
+        }
+
+        @Callback(doc = "function(species:string):table|boolean,string? -- Returns the default genome template of a bee species, keyed by the chromosome name Forestry itself uses, lower_snake_case (species, speed, lifespan, fertility, temperature_tolerance, never_sleeps, humidity_tolerance, tolerates_rain, cave_dwelling, flower_provider, flowering, territory, effect), each { uid, name, dominant }. The species is accepted as an allele UID, an allele name or a display name. Returns false plus a reason when it is unknown or carries no template.")
+        public Object[] getSpeciesTemplate(Context ctx, Arguments args) {
+            String wanted = args.checkString(0);
+
+            ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
+            if (!(root instanceof IBeeRoot)) return new Object[]{ false, "bee root not available" };
+
+            IAlleleBeeSpecies species = findSpecies(wanted);
+            if (species == null) return new Object[]{ false, "unknown species: " + wanted };
+
+            IAllele[] template = root.getTemplate(species.getUID());
+            if (template == null) return new Object[]{ false, "no template registered for " + species.getUID() };
+
+            // Walk the karyotype rather than the array: it names each chromosome and gives the
+            // index to read, so the answer stays correct if Forestry ever reorders them.
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+            for (IChromosomeType type : root.getKaryotype()) {
+                int idx = type.ordinal();
+                IAllele allele = (idx >= 0 && idx < template.length) ? template[idx] : null;
+                if (allele == null) continue; // a template may leave a chromosome unset
+
+                out.put(type.getName(), alleleInfo(allele));
+            }
+
+            return new Object[]{ out };
+        }
+
+        @Callback(doc = "function([filter:string]):table -- Lists every registered bee species as an array of { uid, name, dominant, hasTemplate }, read from Forestry's allele registry so species added by other mods are included. The optional filter keeps those whose uid or name contains it, case-insensitively.")
+        public Object[] listSpeciesTemplates(Context ctx, Arguments args) {
+            // optString rather than count() + checkString: a script that passes nil explicitly
+            // still counts as one argument, and checkString would then refuse it.
+            String raw = args.optString(0, null);
+            String filter = (raw == null || raw.isEmpty()) ? null : raw.toLowerCase();
+
+            ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
+            if (!(root instanceof IBeeRoot)) return new Object[]{ false, "bee root not available" };
+
+            List<Object> arr = new ArrayList<>();
+            for (IAllele allele : AlleleManager.alleleRegistry.getRegisteredAlleles(EnumBeeChromosome.SPECIES)) {
+                if (!(allele instanceof IAlleleBeeSpecies)) continue;
+
+                IAlleleBeeSpecies species = (IAlleleBeeSpecies) allele;
+                String uid = species.getUID();
+                String name = displayName(species);
+
+                if (filter != null
+                    && !uid.toLowerCase().contains(filter)
+                    && !name.toLowerCase().contains(filter)) {
+                    continue;
+                }
+
+                LinkedHashMap<String, Object> info = alleleInfo(species);
+                info.put("hasTemplate", root.getTemplate(uid) != null);
+                arr.add(info);
+            }
+
+            return new Object[]{ arr.toArray() };
         }
 
         @Callback(doc = "function():table -- Returns effective modifiers from upgrades: {production, lifespan, territory, mutation, flowering, geneticDecay, isSealed, isSelfLighted, isSunlightSimulated, isAutomated, isCollectingPollen, energy, temperature, humidity}")
