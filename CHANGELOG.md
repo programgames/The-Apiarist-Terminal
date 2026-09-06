@@ -6,6 +6,18 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+### Added
+- Components for the eight remaining Gendustry machines: `mutatron`, `genetic_sampler`,
+  `genetic_imprinter`, `genetic_replicator`, `genetic_transposer`, `dna_extractor`,
+  `protein_liquifier` and `mutagen_producer`.
+  - Shared callbacks: `getProgress`, `isWorking`, `start`, `canStart`, `isValidInputs`,
+    `getEnergy`, `listSlots`, `listTanks`, `listOutputs`, plus the event and tuning controls.
+  - Signals `<component>_started`, `<component>_finished` and `<component>_output`.
+  - Slot indices are read from the machine at runtime instead of being hardcoded.
+- New config category `processing_machines`, listed in the in-game config GUI, holding the shared
+  defaults for those eight components.
+- Documentation: `docs/components/processing_machines.md`.
+
 ### Fixed
 - `OCGendustryMod.VERSION` was still `0.1.0` while the build produced `0.2.0`; both now report the same version.
 - OpenComputers was declared as a soft dependency (`after:opencomputers`) in `@Mod`, contradicting `mcmod.info`

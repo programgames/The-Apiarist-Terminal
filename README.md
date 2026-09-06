@@ -20,6 +20,14 @@ Notes
 - Components:
   - Advanced Mutatron: `advmutatron`
   - Industrial Apiary: `industrial_apiary`
+  - Mutatron: `mutatron`
+  - Genetic Sampler: `genetic_sampler`
+  - Genetic Imprinter: `genetic_imprinter`
+  - Genetic Replicator: `genetic_replicator`
+  - Genetic Transposer: `genetic_transposer`
+  - DNA Extractor: `dna_extractor`
+  - Protein Liquifier: `protein_liquifier`
+  - Mutagen Producer: `mutagen_producer`
 - Attach an Adapter/Cable to the machine.
 - Logging tag: `[ApiaristTerminal]`. Errors will mention driver names for easier troubleshooting.
 
@@ -28,6 +36,7 @@ Full callback reference can be found in per-component docs, along with quick sta
 
 - Advanced Mutatron: `docs/components/advmutatron.md`
 - Industrial Apiary: `docs/components/industrial_apiary.md`
+- The eight other machines: `docs/components/processing_machines.md`
 
 ## Configuration
 - In-game: Mods -> The Apiarist Terminal -> Config opens a GUI to tweak defaults.

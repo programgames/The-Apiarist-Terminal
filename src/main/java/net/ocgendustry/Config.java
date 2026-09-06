@@ -17,6 +17,7 @@ public final class Config {
     public static final String CAT_GENERAL = "general";
     public static final String CAT_ADV_MUTATRON = "advanced_mutatron";
     public static final String CAT_APIARY = "industrial_apiary";
+    public static final String CAT_PROCESSORS = "processing_machines";
     public static final String CAT_INTEGRATION = "integration_test";
 
     // Advanced Mutatron defaults
@@ -29,9 +30,15 @@ public final class Config {
     public static double apiaryWaitInterval = 0.2;       // seconds
     public static int apiarySignalIntervalMax = 40;      // cap safety
 
+    // Shared defaults for the processing machines (everything but the Advanced Mutatron and the
+    // Industrial Apiary, which keep their own category because their drivers are hand written).
+    public static int processorSignalInterval = 2;          // ticks
+    public static int processorSignalIntervalMax = 40;      // cap safety
+
     // Per-device default for events (applied on environment creation / applyDefaultTuning)
     public static boolean advMutatronDefaultEventsEnabled = true;
     public static boolean apiaryDefaultEventsEnabled = true;
+    public static boolean processorDefaultEventsEnabled = true;
 
     // Integration test harness (disabled by default; gated for safety)
     public static boolean enableIntegrationHarness = false;
@@ -71,6 +78,8 @@ public final class Config {
         cfg.setCategoryComment(CAT_GENERAL, "General settings for The Apiarist Terminal.");
         cfg.setCategoryComment(CAT_ADV_MUTATRON, "Advanced Mutatron driver defaults.");
         cfg.setCategoryComment(CAT_APIARY, "Industrial Apiary driver defaults.");
+        cfg.setCategoryComment(CAT_PROCESSORS, "Shared defaults for the Gendustry processing machines "
+            + "(mutatron, genetic sampler/imprinter/replicator/transposer, dna extractor, protein liquifier, mutagen producer).");
         cfg.setCategoryComment(CAT_INTEGRATION, "In-game integration test harness (creative only; keep disabled on normal worlds).");
 
         // General
@@ -128,6 +137,23 @@ public final class Config {
             apiaryDefaultEventsEnabled,
             "Default per-device eventsEnabled state for newly created Industrial Apiary components."
         );
+
+        // Processing machines (shared by every generic machine driver)
+        processorSignalInterval = cfg.getInt(
+            "signalIntervalTicks",
+            CAT_PROCESSORS,
+            processorSignalInterval,
+            1,
+            processorSignalIntervalMax,
+            "Time between checks for OC signals (in ticks). Lower = more responsive, higher = less overhead."
+        );
+        processorDefaultEventsEnabled = cfg.getBoolean(
+            "defaultEventsEnabled",
+            CAT_PROCESSORS,
+            processorDefaultEventsEnabled,
+            "Default per-device eventsEnabled state for newly created processing machine components."
+        );
+
 
         // Integration
         enableIntegrationHarness = cfg.getBoolean(

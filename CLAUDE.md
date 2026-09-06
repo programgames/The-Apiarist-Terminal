@@ -41,8 +41,13 @@ src/main/java/net/ocgendustry/
   Config.java                  Forge Configuration; categories General / Adv Mutatron / Apiary / Integration Test
   Log.java                     Log4j wrapper with the [ApiaristTerminal] tag
   driver/DriverRegistry.java   single registration point (idempotent)
+  driver/MachineDriver.java    base driver for the 8 processing machines (tile class + MachineSpec)
+  driver/MachineSpec.java      per-machine description: name, slots, tanks, canStart, input check
+  driver/MachineEnvironment.java      THE component for those 8: final, holds every @Callback
+  driver/Driver{Mutatron,Sampler,Imprinter,Replicator,Transposer,Extractor,Liquifier,MutagenProducer}.java
   driver/DriverAdvMutatron.java
   driver/DriverApiary.java     read-only driver; writes go through generic OC inventory calls
+  util/Stacks.java             ItemStack -> Lua table, and the cheap output signature
   util/Tuning.java             clamps for signalInterval / waitStep, shared by every driver
   util/MutatronLogic.java      mutation-selection helper (no MC types) so logic is unit-testable
   client/GuiFactory|GuiModConfig.java   in-game config GUI
@@ -57,10 +62,19 @@ docs/components/<name>.md      per-component callback reference
 
 ## Conventions
 
-**Drivers.** `public final class DriverXxx extends DriverSidedTileEntity` with a
+**Drivers.** Most Gendustry machines extend bdlib's `TileBaseProcessor` and implement `TileWorker`;
+for those, subclass `MachineDriver` and describe the machine (component name, named slots, tanks) —
+see `DriverSampler` for the shortest example. **Never subclass `MachineEnvironment`**: when several
+drivers share a block (always the case here, OC's generic energy driver binds to their Forge Energy
+capability) OpenComputers dispatches a callback only to the environment whose class *equals* the
+callback's declaring class, so an inherited `@Callback` is listed by `component.methods()` yet fails
+every call with `no such method`. Add the callback to `MachineEnvironment` and gate it on the
+`MachineSpec`. Write a driver by hand only for machines exposing state the shared component
+cannot reach: `public final class DriverXxx extends DriverSidedTileEntity` with a
 `public static final class Environment extends AbstractManagedEnvironment implements NamedBlock`.
 Type strongly against the Gendustry tile class — **no reflection**. `priority()` returns `10` so the
 driver wins over OC's generic energy/inventory drivers. Register in `DriverRegistry.registerAll()`.
+Read slot indices from the tile's own `slots()` accessors rather than hardcoding them.
 
 **Callbacks.** Every `@Callback` carries a `doc` in the form
 `"function(arg:type):ret -- description"`. Return `new Object[]{ value }`; signal failure as
@@ -91,6 +105,8 @@ constants. Comments explain the *why* (game quirks), not the *what*.
   Guard on `stack.hasTagCompound()` first (see `listMutations`).
 - Slot layouts are hardcoded from Gendustry sources: Mutatron `0/1` parents, `2` output, `3` labware,
   `4..9` selectors; Apiary `0` queen, `1` drone, `2..5` upgrades, `6..14` output.
+- Component names must not collide with OpenComputers' own (`transposer`, `inventory_controller`);
+  that is why the Genetic Transposer is `genetic_transposer`. `MachineComponentNamesTest` guards it.
 - The version lives in two places: `build.gradle` `version` and `OCGendustryMod.VERSION`. They must match.
 - Forge lowercases config category names, so `Config.CAT_*` are lowercase snake_case on purpose —
   they are the names the README and `docs/components/*.md` promise (`advanced_mutatron.defaultEventsEnabled`).
