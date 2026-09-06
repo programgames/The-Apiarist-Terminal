@@ -22,6 +22,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Documentation: `docs/components/processing_machines.md`.
 
 ### Fixed
+- The Genetic Transposer's `isValidInputs` passed its two stacks to Gendustry in the wrong order.
+  `TileTransposer.isValidInputs` takes (blank, template) — that is how Gendustry's own
+  `isItemValidForSlot` calls it from either slot — so every pair was reported as
+  `incompatible inputs`, including pairs the machine was already processing.
 - `_started` and `_finished` were sampled only every `signalIntervalTicks`, so a cycle shorter than
   that interval raised neither signal. A Genetic Sampler at the default interval lost every
   transition. The working flag is now read on every tick and only the output scan stays throttled.

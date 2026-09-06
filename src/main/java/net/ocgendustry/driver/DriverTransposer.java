@@ -47,7 +47,10 @@ public final class DriverTransposer extends MachineDriver<TileTransposer> {
         ItemStack blank = tile.getStackInSlot(tile.slots().inBlank());
         if (Stacks.isEmpty(blank)) return "missing blank sample";
 
-        if (!tile.isValidInputs(template, blank)) return "incompatible inputs";
+        // Argument order matters and is (blank, template): Gendustry's own isItemValidForSlot calls
+        // it that way round from both slots. Passing (template, blank) reports every pair as
+        // incompatible, including pairs the machine is happily processing.
+        if (!tile.isValidInputs(blank, template)) return "incompatible inputs";
 
         return null;
     }
