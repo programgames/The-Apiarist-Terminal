@@ -130,7 +130,13 @@ so OpenOS's `install` drops them where `package.path` and the shell already look
 delivery route that assumes nothing about the computer: no hard drive, no internet card, and no
 guessing at the address of a managed filesystem OpenComputers only creates on first write.
 
-`.idea/runConfigurations/` carries the same two as shared IntelliJ configurations.
+`.idea/runConfigurations/` carries the same two as shared IntelliJ configurations. They invoke the
+**Gradle tasks**, not a Java Application: an Application configuration builds its classpath from
+IntelliJ's model of the project, which is only as fresh as the last Gradle import, and a stale one
+launches without this mod and says nothing about it.
+
+`runServer`'s working directory is pinned to `run-server` on the task itself, so the client and the
+dedicated server never share a save whichever way they are started.
 
 **Check `cpCheck` before believing a dev launch.** ForgeGradle 2.3 predates Gradle 4's
 `build/classes/java/<sourceSet>` layout and drops `sourceSets.main.output` from the run classpath,

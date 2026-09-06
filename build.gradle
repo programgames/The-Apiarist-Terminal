@@ -29,10 +29,9 @@ targetCompatibility = 1.8
 minecraft {
     version = "1.12.2-14.23.5.2847"
     // A client and a server started together fight over logs/latest.log if they share a
-    // directory, and ForgeGradle gives both run tasks the same one. Pass -PmcRunDir=run-server
-    // to the server so each gets its own; the IntelliJ run configurations already do the
-    // equivalent through their working directory.
-    runDir = project.findProperty('mcRunDir') ?: 'run'
+    // directory, and ForgeGradle gives both run tasks the same one. The client keeps it; the
+    // server's is overridden below, on the task itself, so nobody has to remember a flag.
+    runDir = 'run'
     mappings = "stable_39"
 }
 
@@ -330,6 +329,12 @@ afterEvaluate {
         // after `clean` finds an empty directory and silently starts without the mod again.
         run.dependsOn 'classes'
     }
+
+    // A client and a dedicated server cannot share a save directory, and ForgeGradle hands both
+    // run tasks the same runDir. Setting it on the task rather than through a -P flag means the
+    // server lands in run-server/ however it is started -- terminal or IDE.
+    tasks.runServer.workingDir = file('run-server')
+    tasks.runServer.doFirst { file('run-server').mkdirs() }
 }
 
 task cpCheck {
@@ -341,6 +346,10 @@ task cpCheck {
             def own = tasks[name].classpath.files.findAll { it.path.contains(projectDir.name) }
             println "-- ${name}:"
             own.each { println "     ${it}" }
+        }
+        println "-- sourceSets.main.runtimeClasspath (ce que IntelliJ importe):"
+        sourceSets.main.runtimeClasspath.files.each {
+            if (it.path.contains(projectDir.name)) println "     ${it}"
         }
     }
 }
