@@ -1,0 +1,9 @@
+// Without this, Gradle takes the root project name from the directory, and IntelliJ derives its
+// module names from that -- so the same checkout under two folder names produces
+// The-Apiarist-Terminal.main in one and Apiarist-origine.main in the other, and a shared run
+// configuration can only ever name one of them.
+//
+// Pinning it keeps the modules called apiarist-terminal.main everywhere, which is what
+// .idea/runConfigurations/ refers to. archivesBaseName is set in build.gradle, so the jar name
+// does not depend on this.
+rootProject.name = 'apiarist-terminal'
