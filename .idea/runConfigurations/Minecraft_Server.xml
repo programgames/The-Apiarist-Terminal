@@ -1,17 +1,35 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" factoryName="Application" name="Minecraft Server" type="Application">
-  <extension enabled="false" name="coverage" runner="idea" sample_coverage="true"/>
-  <option name="MAIN_CLASS_NAME" value="GradleStartServer"/>
-  <option name="VM_PARAMETERS" value="-Xmx2G" />
-  <option name="PROGRAM_PARAMETERS" value=""/>
-  <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$/run-server" />
-  <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false"/>
-  <option name="ALTERNATIVE_JRE_PATH" value=""/>
-  <option name="ENABLE_SWING_INSPECTOR" value="false"/>
-  <option name="ENV_VARIABLES"/>
-  <option name="PASS_PARENT_ENVS" value="true"/>
-  <module name="apiarist-terminal.main"/>
-  <RunnerSettings RunnerId="Run"/>
-  <ConfigurationWrapper RunnerId="Run"/>
+  <!--
+    A Gradle configuration, not an Application one, on purpose.
+
+    An Application configuration builds its classpath from IntelliJ's own model of the project,
+    and that model is only as fresh as the last Gradle import. ForgeGradle 2.3 drops the main
+    source set's classes from the run classpath under Gradle 4.10, and while build.gradle puts
+    them back, an IDE that has not re-imported keeps launching without them -- which means
+    launching without this mod, silently, with nothing in the log to say so.
+
+    Going through the Gradle task removes the stale-import failure mode entirely: the classpath
+    is built by the same code that ./gradlew cpCheck prints.
+  -->
+  <configuration default="false" name="Minecraft Server" type="GradleRunConfiguration" factoryName="Gradle">
+    <ExternalSystemSettings>
+      <option name="executionName" />
+      <option name="externalProjectPath" value="$PROJECT_DIR$" />
+      <option name="externalSystemIdString" value="GRADLE" />
+      <option name="scriptParameters" value="" />
+      <option name="taskDescriptions">
+        <list />
+      </option>
+      <option name="taskNames">
+        <list>
+          <option value="runServer" />
+        </list>
+      </option>
+      <option name="vmOptions" value="" />
+    </ExternalSystemSettings>
+    <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+    <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+    <DebugAllEnabled>false</DebugAllEnabled>
+    <method v="2" />
   </configuration>
 </component>
