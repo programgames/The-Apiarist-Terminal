@@ -49,6 +49,7 @@ src/main/java/net/ocgendustry/
   driver/DriverApiary.java     read-only driver; writes go through generic OC inventory calls
   util/Stacks.java             ItemStack -> Lua table, and the cheap output signature
   util/Tuning.java             clamps signalInterval, shared by every driver
+  util/SignalState.java        started/finished/output decisions, pure Java, unit-tested
   util/MutatronLogic.java      mutation-selection helper (no MC types) so logic is unit-testable
   client/GuiFactory|GuiModConfig.java   in-game config GUI
   command/OcGendustryCommand.java       /ocgendustry test advmutatron [fresh|reuse|all]
@@ -94,6 +95,12 @@ in Lua, on the `_finished` signal. Two tests guard it: `MachineEnvironmentDocsTe
 off. `update()` is throttled by `signalInterval` ticks. Every component exposes
 `setEventsEnabled/getEventsEnabled/areEventsEnabled` and `setSignalInterval/applyDefaultTuning`.
 Signals: `advmutatron_started|finished|output`, `apiary_started|finished|output`.
+
+**Signals.** The started/finished/output decisions live in `util/SignalState`, shared by all three
+drivers and covered by `SignalStateTest`. Prime it from the machine in the constructor, sample it
+every tick, and let it throttle the output scan. Two defects came from doing this inline: edges
+detected on a throttled sample (a short cycle raised nothing) and state initialised to a value the
+machine never held (a phantom signal on the first tick).
 
 **Tunables.** Clamp through `Tuning.clampSignalInterval`; defaults come from
 `Config` at environment creation and are re-read by `applyDefaultTuning()`. New pure logic belongs

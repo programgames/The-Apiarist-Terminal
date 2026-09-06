@@ -23,6 +23,23 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   `testall.lua` walks the processing machines checking the expectations specific to each;
   `machine_test.lua` runs one machine through a full cycle and watches its signals.
 
+### Changed
+- The started/finished/output decisions moved to `util/SignalState`, shared by all three drivers
+  and covered by `SignalStateTest`. Until now the suite only checked names and doc strings, and
+  every behavioural defect found so far was found by running the mod rather than by a test.
+- `_started` and `_finished` were sampled only every `signalIntervalTicks` in the two hand-written
+  drivers, so a cycle shorter than that interval raised neither signal. The working flag is now
+  read on every tick and only the output scan stays throttled.
+- Every driver started its signal state from a value the machine had never held, so a component
+  created while its machine was already running raised a phantom `_started` on its first tick, and
+  one with an output slot a phantom `_output`, on every chunk load. Both are primed from the
+  machine now.
+- The output signature includes the metadata and an NBT hash. It was name and count only, so two
+  different bees in the same slot looked identical and an output change between two scans could
+  raise no signal - on machines whose whole product is defined by its NBT.
+- `applyDefaultTuning()` re-reads the config file at most once a second. It is reachable from Lua
+  on the server thread, so a script calling it in a loop was doing disk I/O every iteration.
+
 ### Removed
 - `waitForPrincess` (`industrial_apiary`) and `setWaitInterval` (every component), along with the
   `waitStepSeconds` config option. **This breaks scripts that call them.** The first could not work

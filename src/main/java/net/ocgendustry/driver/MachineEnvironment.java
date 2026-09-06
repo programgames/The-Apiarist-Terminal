@@ -13,6 +13,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
 import net.ocgendustry.Config;
+import net.ocgendustry.util.SignalState;
 import net.ocgendustry.util.Stacks;
 import net.ocgendustry.util.Tuning;
 
@@ -48,15 +49,9 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
     private final T tile;
     private final MachineSpec<T> spec;
 
-    private final int signalIntervalMax = Config.processorSignalIntervalMax;
-
-    // Primed from the machine in the constructor, never from a default: a component created while
-    // its machine is already running would otherwise raise a signal describing nothing on its
-    // first tick, because a default is a state the machine never held.
-    private int signalInterval;
-    private boolean lastWorking;
-    private String lastOutputSignature;
-    private int ticksSinceScan = 0;
+    // Primed from the machine in the constructor: starting from a value it never held would
+    // raise a signal describing nothing on the first tick. SignalStateTest covers the rules.
+    private final SignalState signals;
 
     // Per-device toggle, in addition to the global Config.enableEvents
     private boolean eventsEnabled;
@@ -69,9 +64,11 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
             .withComponent(spec.componentName(), Visibility.Network)
             .create());
 
-        signalInterval = Tuning.clampSignalInterval(Config.processorSignalInterval, signalIntervalMax);
-        lastWorking = tile.isWorking();
-        lastOutputSignature = outputSignature(spec.outputSlots(tile));
+        signals = new SignalState(
+            Tuning.clampSignalInterval(Config.processorSignalInterval, Config.processorSignalIntervalMax),
+            tile.isWorking(),
+            outputSignature(spec.outputSlots(tile)));
+
         eventsEnabled = Config.processorDefaultEventsEnabled;
     }
 
@@ -100,10 +97,15 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
 
         // Sampled every tick, on purpose: reading the working flag is a field access, and a cycle
         // shorter than the interval would otherwise start and finish between two samples.
-        boolean working = tile.isWorking();
-        if (working != lastWorking) {
-            sendSignal(component + (working ? "_started" : "_finished"));
-            lastWorking = working;
+        switch (signals.sample(tile.isWorking())) {
+            case STARTED:
+                sendSignal(component + "_started");
+                break;
+            case FINISHED:
+                sendSignal(component + "_finished");
+                break;
+            default:
+                break;
         }
 
         // Machines that only produce fluid have no output slot, so they never raise this signal:
@@ -112,17 +114,9 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
         if (outputs.length == 0) return;
 
         // Walking the output slots is the expensive half, so that one is throttled.
-        if (signalInterval > 1) {
-            ticksSinceScan++;
-            if (ticksSinceScan < signalInterval) return;
-            ticksSinceScan = 0;
-        }
+        if (!signals.dueForOutputScan()) return;
 
-        String signature = outputSignature(outputs);
-        if (!signature.equals(lastOutputSignature)) {
-            lastOutputSignature = signature;
-            sendSignal(component + "_output");
-        }
+        if (signals.outputChanged(outputSignature(outputs))) sendSignal(component + "_output");
     }
 
     private void sendSignal(String name) {
@@ -139,7 +133,8 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
     }
 
     private void applyDefaults() {
-        signalInterval = Tuning.clampSignalInterval(Config.processorSignalInterval, signalIntervalMax);
+        signals.setSignalInterval(
+            Tuning.clampSignalInterval(Config.processorSignalInterval, Config.processorSignalIntervalMax));
         eventsEnabled = Config.processorDefaultEventsEnabled;
     }
 
@@ -264,7 +259,7 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
 
     @Callback(doc = "function(ticks:number):boolean -- Set how often output slots are scanned for the _output signal (every N ticks, min 1). The _started and _finished signals are not throttled by this. Lower = more responsive, higher = less overhead.")
     public Object[] setSignalInterval(Context ctx, Arguments args) {
-        signalInterval = Tuning.clampSignalInterval(args.checkInteger(0), signalIntervalMax);
+        signals.setSignalInterval(Tuning.clampSignalInterval(args.checkInteger(0), Config.processorSignalIntervalMax));
 
         return new Object[]{ true };
     }

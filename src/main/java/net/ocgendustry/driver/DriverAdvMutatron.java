@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.ocgendustry.Config;
 import net.ocgendustry.util.MutatronLogic;
+import net.ocgendustry.util.SignalState;
 import net.ocgendustry.util.Tuning;
 
 public final class DriverAdvMutatron extends DriverSidedTileEntity {
@@ -63,7 +64,11 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
                 .create());
 
             // Apply defaults from config on environment create
-            signalInterval = Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
+            signals = new SignalState(
+                Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax),
+                tile.isWorking(),
+                signature(tile.getStackInSlot(2)));
+
             eventsEnabled = Config.advMutatronDefaultEventsEnabled;
         }
 
@@ -85,11 +90,10 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             tile.setMutation(key);
         }
 
-        // Track state to emit OpenComputers signals without blocking.
-        private boolean lastWorking = false;
-        private String lastOutSig = "";
-        private int signalInterval = 2; // emit signals every N ticks (default 2)
-        private int tickCounter = 0;
+        // Signal bookkeeping, shared with the other drivers and unit-tested in SignalStateTest.
+        // Primed from the machine in the constructor: starting from a value it never held makes
+        // the first tick raise a signal that describes nothing.
+        private final SignalState signals;
 
         // Per-device toggle in addition to global Config.enableEvents
         private boolean eventsEnabled = true;
@@ -105,27 +109,22 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             // Respect global config for event emissions
             if (!Config.enableEvents || !eventsEnabled) return;
 
-            // Read the working flag every tick: it is a field access, and a cycle shorter than
-            // signalInterval would otherwise start and finish between two samples, raising neither
-            // signal. Only the output scan below is throttled.
-            boolean working = tile.isWorking();
-
-            if (working && !lastWorking) {
-                if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_started"});
-            } else if (!working && lastWorking) {
-                if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_finished"});
+            switch (signals.sample(tile.isWorking())) {
+                case STARTED:
+                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_started"});
+                    break;
+                case FINISHED:
+                    if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_finished"});
+                    break;
+                default:
+                    break;
             }
 
-            lastWorking = working;
+            // Reading the output slot is the expensive half, so that one is throttled.
+            if (!signals.dueForOutputScan()) return;
 
-            tickCounter++;
-            if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
-
-            // Detect output changes (slot 2) and emit an event with the new stack info.
             ItemStack out = tile.getStackInSlot(2);
-            String sig = signature(out);
-            if (!sig.equals(lastOutSig)) {
-                lastOutSig = sig;
+            if (signals.outputChanged(signature(out))) {
                 if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_output", stackInfo(out)});
             }
         }
@@ -231,7 +230,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         @Callback(doc = "function(ticks:number):boolean -- Set how often signals are emitted (every N ticks, min 1). Lower = more responsive, higher = less overhead.")
         public Object[] setSignalInterval(Context ctx, Arguments args) {
             int n = Math.max(1, args.checkInteger(0));
-            signalInterval = Tuning.clampSignalInterval(n, Config.advMutatronSignalIntervalMax);
+            signals.setSignalInterval(Tuning.clampSignalInterval(n, Config.advMutatronSignalIntervalMax));
 
             return new Object[]{ true };
         }
@@ -240,7 +239,8 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
         public Object[] applyDefaultTuning(Context ctx, Arguments args) {
             Config.syncFromFile();
 
-            signalInterval = Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax);
+            signals.setSignalInterval(
+                Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax));
             eventsEnabled = Config.advMutatronDefaultEventsEnabled;
 
             return new Object[]{ true };
