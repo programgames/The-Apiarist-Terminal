@@ -412,7 +412,10 @@ public final class DriverApiary extends DriverSidedTileEntity {
 
         @Callback(doc = "function([filter:string]):table -- Lists every registered bee species as an array of { uid, name, dominant, hasTemplate }, read from Forestry's allele registry so species added by other mods are included. The optional filter keeps those whose uid or name contains it, case-insensitively.")
         public Object[] listSpeciesTemplates(Context ctx, Arguments args) {
-            String filter = args.count() > 0 ? args.checkString(0).toLowerCase() : null;
+            // optString rather than count() + checkString: a script that passes nil explicitly
+            // still counts as one argument, and checkString would then refuse it.
+            String raw = args.optString(0, null);
+            String filter = (raw == null || raw.isEmpty()) ? null : raw.toLowerCase();
 
             ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
             if (!(root instanceof IBeeRoot)) return new Object[]{ false, "bee root not available" };
