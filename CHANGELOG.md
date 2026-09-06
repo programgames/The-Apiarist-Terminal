@@ -17,6 +17,11 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - New config category `processing_machines`, listed in the in-game config GUI, holding the shared
   defaults for those eight components.
 - Documentation: `docs/components/processing_machines.md`.
+- Three read-only diagnostic programs shipped with the mod, under `ocgendustry/scripts/`:
+  `survey.lua` reports every component on the network and, for each Gendustry one, its callbacks,
+  state, slots, tanks, verdicts and inventory into a file that can be read off-screen;
+  `testall.lua` walks the processing machines checking the expectations specific to each;
+  `machine_test.lua` runs one machine through a full cycle and watches its signals.
 
 ### Fixed
 - `OCGendustryMod.VERSION` was still `0.1.0` while the build produced `0.2.0`; both now report the same version.
