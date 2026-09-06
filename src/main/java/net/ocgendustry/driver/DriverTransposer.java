@@ -1,10 +1,8 @@
 package net.ocgendustry.driver;
 
-import li.cil.oc.api.machine.Arguments;
-import li.cil.oc.api.machine.Callback;
-import li.cil.oc.api.machine.Context;
 import net.bdew.gendustry.machines.transposer.TileTransposer;
 import net.minecraft.item.ItemStack;
+import net.ocgendustry.util.Stacks;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,52 +17,38 @@ public final class DriverTransposer extends MachineDriver<TileTransposer> {
     public static final String COMPONENT = "genetic_transposer";
 
     public DriverTransposer() {
-        super(TileTransposer.class, COMPONENT);
+        super(TileTransposer.class, MachineSpec.<TileTransposer>named(COMPONENT)
+            .slots(DriverTransposer::slots)
+            .outputs(tile -> new int[]{ tile.slots().outCopy() })
+            .canStart(TileTransposer::canStart)
+            .inputProblem(DriverTransposer::inputProblem)
+            .build());
     }
 
-    @Override
-    protected MachineEnvironment<TileTransposer> createEnvironment(TileTransposer tile) {
-        return new Environment(tile);
+    private static Map<String, Integer> slots(TileTransposer tile) {
+        LinkedHashMap<String, Integer> slots = new LinkedHashMap<>();
+
+        slots.put("inTemplate", tile.slots().inTemplate());
+        slots.put("inBlank", tile.slots().inBlank());
+        slots.put("inLabware", tile.slots().inLabware());
+        slots.put("outCopy", tile.slots().outCopy());
+
+        return slots;
     }
 
-    public static final class Environment extends ItemMachineEnvironment<TileTransposer> {
-        public Environment(TileTransposer tile) {
-            super(tile, COMPONENT);
-        }
+    /**
+     * Why the loaded pair cannot be copied, or null when it can. Worth checking before committing
+     * labware, which is consumed on every run.
+     */
+    private static String inputProblem(TileTransposer tile) {
+        ItemStack template = tile.getStackInSlot(tile.slots().inTemplate());
+        if (Stacks.isEmpty(template)) return "missing template";
 
-        @Override
-        protected Map<String, Integer> namedSlots() {
-            LinkedHashMap<String, Integer> slots = new LinkedHashMap<>();
+        ItemStack blank = tile.getStackInSlot(tile.slots().inBlank());
+        if (Stacks.isEmpty(blank)) return "missing blank sample";
 
-            slots.put("inTemplate", tile.slots().inTemplate());
-            slots.put("inBlank", tile.slots().inBlank());
-            slots.put("inLabware", tile.slots().inLabware());
-            slots.put("outCopy", tile.slots().outCopy());
+        if (!tile.isValidInputs(template, blank)) return "incompatible inputs";
 
-            return slots;
-        }
-
-        @Override
-        protected int[] outputSlots() {
-            return new int[]{ tile.slots().outCopy() };
-        }
-
-        @Override
-        protected boolean machineCanStart() {
-            return tile.canStart();
-        }
-
-        @Callback(doc = "function():boolean,string? -- Checks the pair currently loaded: true when the template can be copied onto the blank sample, false plus a reason when a slot is empty or the two do not belong to the same species root (bees, trees, butterflies).")
-        public Object[] isValidInputs(Context ctx, Arguments args) {
-            ItemStack template = tile.getStackInSlot(tile.slots().inTemplate());
-            ItemStack blank = tile.getStackInSlot(tile.slots().inBlank());
-
-            if (template == null || template.isEmpty()) return new Object[]{ false, "missing template" };
-            if (blank == null || blank.isEmpty()) return new Object[]{ false, "missing blank sample" };
-
-            if (!tile.isValidInputs(template, blank)) return new Object[]{ false, "incompatible inputs" };
-
-            return new Object[]{ true };
-        }
+        return null;
     }
 }

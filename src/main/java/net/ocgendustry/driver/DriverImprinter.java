@@ -6,46 +6,27 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Genetic Imprinter: writes the genes of a template onto an individual, consuming labware.
- * Note that the individual goes in and comes back out, hence the separate in/out slot names.
+ * Genetic Imprinter: writes a genetic template onto an individual, consuming labware.
  */
 public final class DriverImprinter extends MachineDriver<TileImprinter> {
     public static final String COMPONENT = "genetic_imprinter";
 
     public DriverImprinter() {
-        super(TileImprinter.class, COMPONENT);
+        super(TileImprinter.class, MachineSpec.<TileImprinter>named(COMPONENT)
+            .slots(DriverImprinter::slots)
+            .outputs(tile -> new int[]{ tile.slots().outIndividual() })
+            .canStart(TileImprinter::canStart)
+            .build());
     }
 
-    @Override
-    protected MachineEnvironment<TileImprinter> createEnvironment(TileImprinter tile) {
-        return new Environment(tile);
-    }
+    private static Map<String, Integer> slots(TileImprinter tile) {
+        LinkedHashMap<String, Integer> slots = new LinkedHashMap<>();
 
-    public static final class Environment extends ItemMachineEnvironment<TileImprinter> {
-        public Environment(TileImprinter tile) {
-            super(tile, COMPONENT);
-        }
+        slots.put("inTemplate", tile.slots().inTemplate());
+        slots.put("inIndividual", tile.slots().inIndividual());
+        slots.put("inLabware", tile.slots().inLabware());
+        slots.put("outIndividual", tile.slots().outIndividual());
 
-        @Override
-        protected Map<String, Integer> namedSlots() {
-            LinkedHashMap<String, Integer> slots = new LinkedHashMap<>();
-
-            slots.put("inTemplate", tile.slots().inTemplate());
-            slots.put("inIndividual", tile.slots().inIndividual());
-            slots.put("inLabware", tile.slots().inLabware());
-            slots.put("outIndividual", tile.slots().outIndividual());
-
-            return slots;
-        }
-
-        @Override
-        protected int[] outputSlots() {
-            return new int[]{ tile.slots().outIndividual() };
-        }
-
-        @Override
-        protected boolean machineCanStart() {
-            return tile.canStart();
-        }
+        return slots;
     }
 }

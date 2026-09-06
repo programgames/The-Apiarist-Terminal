@@ -3,7 +3,6 @@ package net.ocgendustry.driver;
 import net.bdew.gendustry.machines.mproducer.TileMutagenProducer;
 import net.minecraftforge.fluids.FluidTank;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -15,30 +14,15 @@ public final class DriverMutagenProducer extends MachineDriver<TileMutagenProduc
     public static final String COMPONENT = "mutagen_producer";
 
     public DriverMutagenProducer() {
-        super(TileMutagenProducer.class, COMPONENT);
+        super(TileMutagenProducer.class, MachineSpec.<TileMutagenProducer>named(COMPONENT)
+            .tanks(DriverMutagenProducer::tanks)
+            .build());
     }
 
-    @Override
-    protected MachineEnvironment<TileMutagenProducer> createEnvironment(TileMutagenProducer tile) {
-        return new Environment(tile);
-    }
+    private static Map<String, FluidTank> tanks(TileMutagenProducer tile) {
+        LinkedHashMap<String, FluidTank> tanks = new LinkedHashMap<>();
+        tanks.put("output", tile.tank());
 
-    public static final class Environment extends MachineEnvironment<TileMutagenProducer> {
-        public Environment(TileMutagenProducer tile) {
-            super(tile, COMPONENT);
-        }
-
-        @Override
-        protected Map<String, Integer> namedSlots() {
-            return Collections.emptyMap();
-        }
-
-        @Override
-        protected Map<String, FluidTank> tanks() {
-            LinkedHashMap<String, FluidTank> tanks = new LinkedHashMap<>();
-            tanks.put("output", tile.tank());
-
-            return tanks;
-        }
+        return tanks;
     }
 }

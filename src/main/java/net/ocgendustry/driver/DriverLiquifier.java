@@ -7,40 +7,29 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Protein Liquifier: turns meat into liquid protein. The result is a fluid, so this component has
- * no output slot and never raises the output signal.
+ * Protein Liquifier: turns meat into liquid protein.
  */
 public final class DriverLiquifier extends MachineDriver<TileLiquifier> {
     public static final String COMPONENT = "protein_liquifier";
 
     public DriverLiquifier() {
-        super(TileLiquifier.class, COMPONENT);
+        super(TileLiquifier.class, MachineSpec.<TileLiquifier>named(COMPONENT)
+            .slots(DriverLiquifier::slots)
+            .tanks(DriverLiquifier::tanks)
+            .build());
     }
 
-    @Override
-    protected MachineEnvironment<TileLiquifier> createEnvironment(TileLiquifier tile) {
-        return new Environment(tile);
+    private static Map<String, Integer> slots(TileLiquifier tile) {
+        LinkedHashMap<String, Integer> slots = new LinkedHashMap<>();
+        slots.put("inMeat", tile.slots().inMeat());
+
+        return slots;
     }
 
-    public static final class Environment extends MachineEnvironment<TileLiquifier> {
-        public Environment(TileLiquifier tile) {
-            super(tile, COMPONENT);
-        }
+    private static Map<String, FluidTank> tanks(TileLiquifier tile) {
+        LinkedHashMap<String, FluidTank> tanks = new LinkedHashMap<>();
+        tanks.put("output", tile.tank());
 
-        @Override
-        protected Map<String, Integer> namedSlots() {
-            LinkedHashMap<String, Integer> slots = new LinkedHashMap<>();
-            slots.put("inMeat", tile.slots().inMeat());
-
-            return slots;
-        }
-
-        @Override
-        protected Map<String, FluidTank> tanks() {
-            LinkedHashMap<String, FluidTank> tanks = new LinkedHashMap<>();
-            tanks.put("output", tile.tank());
-
-            return tanks;
-        }
+        return tanks;
     }
 }

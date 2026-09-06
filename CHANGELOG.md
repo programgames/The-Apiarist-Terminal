@@ -12,13 +12,22 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   `protein_liquifier` and `mutagen_producer`.
   - Shared callbacks: `getProgress`, `isWorking`, `start`, `getEnergy`, `listSlots`, `listTanks`,
     `listOutputs`, `waitForFinish`, plus the usual event and tuning controls.
-  - `canStart` on the five machines whose tile declares it; `isValidInputs` on the Genetic Transposer.
+  - `canStart` and `isValidInputs` on every one of them; they answer
+    `false, "not supported by this machine"` where Gendustry declares no such check (the three
+    machines that only fill a tank, and every machine but the Genetic Transposer respectively).
   - Signals `<component>_started`, `<component>_finished` and `<component>_output`.
   - Slot indices are read from the machine at runtime instead of being hardcoded.
 - New config category `processing_machines` holding the shared defaults for those eight components.
 - Documentation: `docs/components/processing_machines.md`.
 
 ### Fixed
+- The eight processing-machine components exposed their callbacks but every call failed with
+  `no such method`. OpenComputers routes a call to the environment whose class *equals* the
+  callback's declaring class as soon as several drivers share a block, which is always the case
+  here since its generic energy driver binds to these machines' Forge Energy capability. The
+  callbacks were declared on an abstract base class, so none of them were ever dispatched, while
+  `component.methods()` still listed them. The component is now a single `final`
+  `MachineEnvironment` configured by a `MachineSpec`, and a test guards the invariant.
 - `OCGendustryMod.VERSION` was still `0.1.0` while the build produced `0.2.0`; both now report the same version.
 - OpenComputers was declared as a soft dependency (`after:opencomputers`) in `@Mod`, contradicting `mcmod.info`
   and the README; it is now `required-after:opencomputers`.

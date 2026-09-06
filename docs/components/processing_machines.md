@@ -28,16 +28,16 @@ OpenComputers' generic inventory and energy drivers, and the higher priority win
 
 ## Components
 
-| Machine | Component | Item slots | Tanks | Extra callbacks |
+| Machine | Component | Item slots | Tanks | Answers `canStart` / `isValidInputs` |
 |---|---|---|---|---|
-| Mutatron | `mutatron` | `inIndividual1`, `inIndividual2`, `inLabware`, `outIndividual` | `input` | `canStart` |
-| Genetic Sampler | `genetic_sampler` | `inIndividual`, `inSampleBlank`, `inLabware`, `outSample` | — | `canStart` |
-| Genetic Imprinter | `genetic_imprinter` | `inTemplate`, `inIndividual`, `inLabware`, `outIndividual` | — | `canStart` |
-| Genetic Replicator | `genetic_replicator` | `inTemplate`, `outIndividual` | `dna`, `protein` | `canStart` |
-| Genetic Transposer | `genetic_transposer` | `inTemplate`, `inBlank`, `inLabware`, `outCopy` | — | `canStart`, `isValidInputs` |
-| DNA Extractor | `dna_extractor` | `inIndividual`, `inLabware` | `output` | — |
-| Protein Liquifier | `protein_liquifier` | `inMeat` | `output` | — |
-| Mutagen Producer | `mutagen_producer` | none named | `output` | — |
+| Mutatron | `mutatron` | `inIndividual1`, `inIndividual2`, `inLabware`, `outIndividual` | `input` | yes / no |
+| Genetic Sampler | `genetic_sampler` | `inIndividual`, `inSampleBlank`, `inLabware`, `outSample` | — | yes / no |
+| Genetic Imprinter | `genetic_imprinter` | `inTemplate`, `inIndividual`, `inLabware`, `outIndividual` | — | yes / no |
+| Genetic Replicator | `genetic_replicator` | `inTemplate`, `outIndividual` | `dna`, `protein` | yes / no |
+| Genetic Transposer | `genetic_transposer` | `inTemplate`, `inBlank`, `inLabware`, `outCopy` | — | yes / yes |
+| DNA Extractor | `dna_extractor` | `inIndividual`, `inLabware` | `output` | no / no |
+| Protein Liquifier | `protein_liquifier` | `inMeat` | `output` | no / no |
+| Mutagen Producer | `mutagen_producer` | none named | `output` | no / no |
 
 Two naming notes:
 
@@ -52,7 +52,12 @@ Available on all eight:
 
 - `getProgress(): number` — 0..1.
 - `isWorking(): boolean` — true while processing.
-- `start(): boolean` — try to start now; true only if this call is what started it.
+- `start(): boolean` — try to start now; true only if this call is what started it. **Expect `false`
+  most of the time, and do not treat it as an error**: bdlib's server tick calls the machine's own
+  `tryStart()` every tick as soon as it has enough energy and is not working, so a loaded machine
+  starts on its own and `start()` loses that race. It is useful mainly for a machine the tick will
+  not start by itself. To drive a cycle, check `isWorking()` and use `waitForFinish()` rather than
+  relying on `start()` returning true.
 - `getEnergy(): table` — `{ stored, capacity }`.
 - `listSlots(): table` — the machine's named slots, plus `outputs:number[]` and `size:number`.
 - `listTanks(): table` — array of `{ name, amount, capacity, fluid? }`; empty for machines with no tank.
@@ -64,18 +69,21 @@ Available on all eight:
 - `setSignalInterval(ticks)`, `setWaitInterval(seconds)`, `applyDefaultTuning()`.
 - `setEventsEnabled(bool)`, `getEventsEnabled()`, `areEventsEnabled()`.
 
-On the five machines that turn items into items:
+Two more are present on every component, and answer `false, "not supported by this machine"` where
+Gendustry offers no such check. They are exposed everywhere rather than only on the machines that
+support them because OpenComputers dispatches a callback only when the environment's class is
+exactly the class declaring it, so a component cannot pick and choose which callbacks it carries
+(see *Why one class* below).
 
-- `canStart(): boolean` — true when every required slot is filled, the output is free and there is
-  enough energy. The three fluid-producing machines do not have it: Gendustry does not declare a
-  pre-flight check for them, so the callback is absent rather than always answering `nil`.
-
-On the Genetic Transposer only:
-
-- `isValidInputs(): boolean, string?` — checks the pair *currently loaded*: `false, "missing template"`,
-  `false, "missing blank sample"`, or `false, "incompatible inputs"` when the template and the sample
-  do not belong to the same species root (bees, trees, butterflies). Use it before committing
-  labware, which is consumed on every run.
+- `canStart(): boolean, string?` — true when every required slot is filled, the output is free and
+  there is enough energy. Answers `false, "not supported by this machine"` on the DNA Extractor,
+  the Protein Liquifier and the Mutagen Producer: Gendustry declares no pre-flight check for the
+  machines that only fill a tank.
+- `isValidInputs(): boolean, string?` — Genetic Transposer only. Checks the pair *currently
+  loaded*: `false, "missing template"`, `false, "missing blank sample"`, or
+  `false, "incompatible inputs"` when the template and the sample do not belong to the same species
+  root (bees, trees, butterflies). Use it before committing labware, which is consumed on every run.
+  Every other machine answers `false, "not supported by this machine"`.
 
 **Slot indices are read from the machine at runtime**, so `listSlots()` stays correct even if
 Gendustry reorders its slots. Never hardcode them in a script.
@@ -170,3 +178,27 @@ while true do
   print("mutation done, collecting")
 end
 ```
+
+## Why one class
+
+All eight components are instances of a single `final` class, `MachineEnvironment`, configured by a
+`MachineSpec` that carries the machine's name, slots, tanks and checks. That is not a style
+preference, it is forced by OpenComputers.
+
+These tiles expose a Forge Energy capability, so OpenComputers' own generic energy driver always
+binds to them alongside this mod's driver. Two drivers on one block means OpenComputers wraps them
+in a `CompoundBlockEnvironment`, and to route an incoming call it looks for the environment whose
+class *is* the class declaring the callback:
+
+```java
+environment.getClass().equals(callback.method().getDeclaringClass())
+```
+
+An exact identity test, not `isAssignableFrom`. A callback inherited from an abstract base class is
+therefore never dispatched — and the failure is quiet and misleading: `component.methods()` still
+lists the callback, because that list is built by a separate scan that does walk the hierarchy, but
+every call fails with `no such method`.
+
+So: **never subclass `MachineEnvironment` to add or specialise a callback.** Add the callback to
+`MachineEnvironment` itself and let the `MachineSpec` say whether the machine supports it.
+`MachineEnvironmentDocsTest` fails if the class stops being final or if a callback ends up inherited.

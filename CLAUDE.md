@@ -43,9 +43,9 @@ src/main/java/net/ocgendustry/
   driver/DriverRegistry.java   single registration point (idempotent)
   driver/DriverAdvMutatron.java  hand written: exposes the GUI-only mutation selection
   driver/DriverApiary.java     hand written, read-only; writes go through generic OC inventory calls
-  driver/MachineDriver.java    base driver for the 8 processing machines (tile class + component name)
-  driver/MachineEnvironment.java      callbacks/signals shared by those 8
-  driver/ItemMachineEnvironment.java  adds canStart() for the 5 tiles that declare it
+  driver/MachineDriver.java    base driver for the 8 processing machines (tile class + MachineSpec)
+  driver/MachineSpec.java      per-machine description: name, slots, tanks, canStart, input check
+  driver/MachineEnvironment.java      THE component for those 8: final, holds every @Callback
   driver/Driver{Mutatron,Sampler,Imprinter,Replicator,Transposer,Extractor,Liquifier,MutagenProducer}.java
                                one per machine: component name, named slots, tanks
   util/Tuning.java             clamps for signalInterval / waitStep, shared by every driver
@@ -66,8 +66,12 @@ docs/components/<name>.md      per-component callback reference
 
 **Drivers.** Most Gendustry machines extend bdlib's `TileBaseProcessor` and implement `TileWorker`;
 for those, subclass `MachineDriver` and describe the machine (component name, named slots, tanks) —
-see `DriverSampler` for the shortest example, and extend `ItemMachineEnvironment` when the tile
-declares `canStart()`. Write a driver by hand only for machines exposing state the shared component
+see `DriverSampler` for the shortest example. **Never subclass `MachineEnvironment`**: when several
+drivers share a block (always the case here, OC's generic energy driver binds to their Forge Energy
+capability) OpenComputers dispatches a callback only to the environment whose class *equals* the
+callback's declaring class, so an inherited `@Callback` is listed by `component.methods()` yet fails
+every call with `no such method`. Add the callback to `MachineEnvironment` and gate it on the
+`MachineSpec`. Write a driver by hand only for machines exposing state the shared component
 cannot reach: `public final class DriverXxx extends DriverSidedTileEntity` with a
 `public static final class Environment extends AbstractManagedEnvironment implements NamedBlock`.
 Type strongly against the Gendustry tile class — **no reflection**. `priority()` returns `10` so the

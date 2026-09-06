@@ -12,39 +12,21 @@ public final class DriverSampler extends MachineDriver<TileSampler> {
     public static final String COMPONENT = "genetic_sampler";
 
     public DriverSampler() {
-        super(TileSampler.class, COMPONENT);
+        super(TileSampler.class, MachineSpec.<TileSampler>named(COMPONENT)
+            .slots(DriverSampler::slots)
+            .outputs(tile -> new int[]{ tile.slots().outSample() })
+            .canStart(TileSampler::canStart)
+            .build());
     }
 
-    @Override
-    protected MachineEnvironment<TileSampler> createEnvironment(TileSampler tile) {
-        return new Environment(tile);
-    }
+    private static Map<String, Integer> slots(TileSampler tile) {
+        LinkedHashMap<String, Integer> slots = new LinkedHashMap<>();
 
-    public static final class Environment extends ItemMachineEnvironment<TileSampler> {
-        public Environment(TileSampler tile) {
-            super(tile, COMPONENT);
-        }
+        slots.put("inIndividual", tile.slots().inIndividual());
+        slots.put("inSampleBlank", tile.slots().inSampleBlank());
+        slots.put("inLabware", tile.slots().inLabware());
+        slots.put("outSample", tile.slots().outSample());
 
-        @Override
-        protected Map<String, Integer> namedSlots() {
-            LinkedHashMap<String, Integer> slots = new LinkedHashMap<>();
-
-            slots.put("inIndividual", tile.slots().inIndividual());
-            slots.put("inSampleBlank", tile.slots().inSampleBlank());
-            slots.put("inLabware", tile.slots().inLabware());
-            slots.put("outSample", tile.slots().outSample());
-
-            return slots;
-        }
-
-        @Override
-        protected int[] outputSlots() {
-            return new int[]{ tile.slots().outSample() };
-        }
-
-        @Override
-        protected boolean machineCanStart() {
-            return tile.canStart();
-        }
+        return slots;
     }
 }

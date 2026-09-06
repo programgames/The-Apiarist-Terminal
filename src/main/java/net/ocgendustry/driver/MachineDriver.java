@@ -15,8 +15,8 @@ import net.minecraft.world.World;
  * Every Gendustry machine except the Industrial Apiary extends bdew's TileBaseProcessor, which
  * gives them the same shape: a progress value, a working flag, an energy buffer and a sided
  * inventory. This class carries the two things that differ per machine — the tile class it binds
- * to and the OpenComputers component name — so a concrete driver only has to describe its slots
- * and tanks.
+ * to and the {@link MachineSpec} describing it — and always builds the same
+ * {@link MachineEnvironment}.
  *
  * Each Gendustry tile class is a sibling of the others (they all extend TileItemProcessor or
  * TileBaseProcessor directly, never each other), so binding on the exact class is enough to keep
@@ -26,16 +26,16 @@ import net.minecraft.world.World;
  */
 public abstract class MachineDriver<T extends TileBaseProcessor & TileWorker> extends DriverSidedTileEntity {
     private final Class<T> tileClass;
-    private final String componentName;
+    private final MachineSpec<T> spec;
 
-    protected MachineDriver(Class<T> tileClass, String componentName) {
+    protected MachineDriver(Class<T> tileClass, MachineSpec<T> spec) {
         this.tileClass = tileClass;
-        this.componentName = componentName;
+        this.spec = spec;
     }
 
     /** The OpenComputers component name this driver exposes, e.g. {@code genetic_sampler}. */
     public final String componentName() {
-        return componentName;
+        return spec.componentName();
     }
 
     @Override
@@ -53,9 +53,6 @@ public abstract class MachineDriver<T extends TileBaseProcessor & TileWorker> ex
         TileEntity te = world.getTileEntity(pos);
         if (!tileClass.isInstance(te)) return null;
 
-        return createEnvironment(tileClass.cast(te));
+        return new MachineEnvironment<>(tileClass.cast(te), spec);
     }
-
-    /** Builds the component exposed for one machine instance. */
-    protected abstract MachineEnvironment<T> createEnvironment(T tile);
 }

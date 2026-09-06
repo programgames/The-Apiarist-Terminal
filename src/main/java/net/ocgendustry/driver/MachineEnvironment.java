@@ -17,31 +17,36 @@ import net.ocgendustry.util.Stacks;
 import net.ocgendustry.util.Tuning;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Component shared by every Gendustry processing machine.
+ * The one component class shared by every Gendustry processing machine.
  *
  * Exposes what the machines have in common: progress, working state, energy buffer, tanks, slot
  * layout, output contents, the started/finished/output signals and the usual tuning callbacks.
- * A concrete driver describes its machine by overriding {@link #namedSlots()}, and, when it has
- * them, {@link #outputSlots()} and {@link #tanks()}.
+ * What differs from machine to machine arrives as a {@link MachineSpec}.
  *
- * Writes are intentionally left out: items go in and out through OpenComputers' generic inventory
- * transfer (transposer / inventory controller) using the indices returned by listSlots().
+ * <p><b>This class is final on purpose, and every {@code @Callback} must stay in it.</b> When more
+ * than one driver attaches to a block — which is always the case here, since these tiles also
+ * expose a Forge Energy capability that OpenComputers' own generic driver binds to — OpenComputers
+ * builds a CompoundBlockEnvironment and picks the environment that owns a callback with
+ * {@code environment.getClass().equals(method.getDeclaringClass())}. That is an exact class
+ * identity test, so a callback declared on a superclass is listed by {@code component.methods()}
+ * yet fails every call with "no such method". Subclassing this to add a callback silently breaks
+ * the whole component; describe the machine in its {@link MachineSpec} instead.
+ *
+ * <p>Writes are intentionally left out: items go in and out through OpenComputers' generic
+ * inventory transfer (transposer / inventory controller) using the indices from listSlots().
  *
  * @param <T> the Gendustry tile this component wraps
  */
-public abstract class MachineEnvironment<T extends TileBaseProcessor & TileWorker> extends AbstractManagedEnvironment implements NamedBlock {
-    /** Machines that only output fluid have no output item slot to watch. */
-    protected static final int[] NO_SLOTS = new int[0];
+public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
+        extends AbstractManagedEnvironment implements NamedBlock {
 
-    protected final T tile;
-
-    private final String componentName;
+    private final T tile;
+    private final MachineSpec<T> spec;
 
     private boolean lastWorking = false;
     private String lastOutputSignature = "";
@@ -53,40 +58,22 @@ public abstract class MachineEnvironment<T extends TileBaseProcessor & TileWorke
     // Per-device toggle, in addition to the global Config.enableEvents
     private boolean eventsEnabled;
 
-    protected MachineEnvironment(T tile, String componentName) {
+    MachineEnvironment(T tile, MachineSpec<T> spec) {
         this.tile = tile;
-        this.componentName = componentName;
+        this.spec = spec;
 
         setNode(Network.newNode(this, Visibility.Network)
-            .withComponent(componentName, Visibility.Network)
+            .withComponent(spec.componentName(), Visibility.Network)
             .create());
 
         applyDefaults();
-    }
-
-    // ---- Machine description (filled in by the concrete drivers) ----
-
-    /**
-     * Item slots of this machine, keyed by the name Gendustry itself uses (inTemplate, outCopy...).
-     * Empty for machines that have no named slot, such as the Mutagen Producer.
-     */
-    protected abstract Map<String, Integer> namedSlots();
-
-    /** Output item slots watched for the {@code <component>_output} signal. */
-    protected int[] outputSlots() {
-        return NO_SLOTS;
-    }
-
-    /** Tanks of this machine, keyed by role (input, output, dna, protein). */
-    protected Map<String, FluidTank> tanks() {
-        return Collections.emptyMap();
     }
 
     // ---- OpenComputers plumbing ----
 
     @Override
     public String preferredName() {
-        return componentName;
+        return spec.componentName();
     }
 
     @Override
@@ -106,20 +93,22 @@ public abstract class MachineEnvironment<T extends TileBaseProcessor & TileWorke
         tickCounter++;
         if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
 
+        String component = spec.componentName();
+
         boolean working = tile.isWorking();
-        if (working && !lastWorking) sendSignal(componentName + "_started");
-        if (!working && lastWorking) sendSignal(componentName + "_finished");
+        if (working && !lastWorking) sendSignal(component + "_started");
+        if (!working && lastWorking) sendSignal(component + "_finished");
         lastWorking = working;
 
         // Machines that only produce fluid have no output slot, so they never raise this signal:
         // tank levels change on nearly every tick and would turn the event into noise.
-        int[] outputs = outputSlots();
+        int[] outputs = spec.outputSlots(tile);
         if (outputs.length == 0) return;
 
         String signature = outputSignature(outputs);
         if (!signature.equals(lastOutputSignature)) {
             lastOutputSignature = signature;
-            sendSignal(componentName + "_output");
+            sendSignal(component + "_output");
         }
     }
 
@@ -154,9 +143,26 @@ public abstract class MachineEnvironment<T extends TileBaseProcessor & TileWorke
         return new Object[]{ tile.isWorking() };
     }
 
-    @Callback(doc = "function():boolean -- Try to start processing immediately; returns true if started by this call specifically, false otherwise.")
+    @Callback(doc = "function():boolean -- Try to start processing immediately; returns true only if this call is what started it. The machine auto-starts on its own tick as soon as it has inputs and energy, so false is the normal answer and not an error.")
     public Object[] start(Context ctx, Arguments args) {
         return new Object[]{ tile.tryStart() };
+    }
+
+    @Callback(doc = "function():boolean,string? -- Returns true if all conditions to start are currently satisfied (required slots filled, output free, enough energy); false plus a reason on the machines that only fill a tank, for which Gendustry declares no pre-flight check.")
+    public Object[] canStart(Context ctx, Arguments args) {
+        if (!spec.hasCanStart()) return new Object[]{ false, "not supported by this machine" };
+
+        return new Object[]{ spec.canStart(tile) };
+    }
+
+    @Callback(doc = "function():boolean,string? -- Checks the pair currently loaded: true when it can be processed, false plus a reason otherwise; false plus \"not supported by this machine\" where Gendustry offers no such check.")
+    public Object[] isValidInputs(Context ctx, Arguments args) {
+        if (!spec.hasInputCheck()) return new Object[]{ false, "not supported by this machine" };
+
+        String problem = spec.inputProblem(tile);
+        if (problem != null) return new Object[]{ false, problem };
+
+        return new Object[]{ true };
     }
 
     @Callback(doc = "function():table -- Returns the energy buffer: { stored:number, capacity:number }.")
@@ -171,9 +177,9 @@ public abstract class MachineEnvironment<T extends TileBaseProcessor & TileWorke
 
     @Callback(doc = "function():table -- Returns slot indices for generic item transfer: the machine's named slots, plus { outputs:number[], size:number }.")
     public Object[] listSlots(Context ctx, Arguments args) {
-        LinkedHashMap<String, Object> out = new LinkedHashMap<>(namedSlots());
+        LinkedHashMap<String, Object> out = new LinkedHashMap<>(spec.namedSlots(tile));
 
-        int[] outputs = outputSlots();
+        int[] outputs = spec.outputSlots(tile);
         Object[] boxed = new Object[outputs.length];
         for (int i = 0; i < outputs.length; i++) boxed[i] = outputs[i];
 
@@ -187,7 +193,7 @@ public abstract class MachineEnvironment<T extends TileBaseProcessor & TileWorke
     public Object[] listTanks(Context ctx, Arguments args) {
         List<Object> arr = new ArrayList<>();
 
-        for (Map.Entry<String, FluidTank> e : tanks().entrySet()) {
+        for (Map.Entry<String, FluidTank> e : spec.tanks(tile).entrySet()) {
             FluidTank tank = e.getValue();
             if (tank == null) continue;
 
@@ -211,7 +217,7 @@ public abstract class MachineEnvironment<T extends TileBaseProcessor & TileWorke
     public Object[] listOutputs(Context ctx, Arguments args) {
         List<Object> arr = new ArrayList<>();
 
-        for (int slot : outputSlots()) {
+        for (int slot : spec.outputSlots(tile)) {
             ItemStack stack = tile.getStackInSlot(slot);
             if (Stacks.isEmpty(stack)) continue;
 
@@ -223,7 +229,7 @@ public abstract class MachineEnvironment<T extends TileBaseProcessor & TileWorke
         return new Object[]{ arr.toArray() };
     }
 
-    @Callback(doc = "function([timeout:number=60]):boolean,string? -- Wait without freezing until the machine stops working, then return true; returns false,\"timeout\" if it is still working when the timeout elapses. Returns true immediately if the machine is not working, so call it after a start() that returned true.")
+    @Callback(doc = "function([timeout:number=60]):boolean,string? -- Wait without freezing until the machine stops working, then return true; returns false,\"timeout\" if it is still working when the timeout elapses. Returns true immediately if the machine is not working, so check isWorking() first.")
     public Object[] waitForFinish(Context ctx, Arguments args) {
         double timeoutSec = args.count() > 0 ? Math.max(0, args.checkDouble(0)) : 60.0;
         long deadline = System.currentTimeMillis() + (long) (timeoutSec * 1000L);
