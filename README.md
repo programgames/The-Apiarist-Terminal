@@ -43,7 +43,7 @@ Full callback reference can be found in per-component docs, along with quick sta
 - File: `config/ocgendustry.cfg` creates after first run. You can hand-edit values.
 
 Currently exposed defaults:
-- Advanced Mutatron: signal interval (ticks) and wait step (seconds) used by events/blocking helpers.
+- Advanced Mutatron and Industrial Apiary: signal interval (ticks) and whether events start enabled.
   - Changes apply to newly created component instances; to apply live, call `adv.applyDefaultTuning()` from an OC computer.
 
 ### Event controls

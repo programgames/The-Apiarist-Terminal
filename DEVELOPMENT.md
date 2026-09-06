@@ -92,7 +92,10 @@ On Windows, use `gradlew.bat` instead of `./gradlew`.
   `docs/components/<component>.md` page.
 - Gate event emission on `Config.enableEvents` (global) AND the per-device `eventsEnabled` flag, and
   return that conjunction from `canUpdate()`.
-- Use `ctx.pause(waitStepSeconds)` for blocking helpers; never `Thread.sleep`.
+- Never make a callback wait. `Callback.direct()` defaults to `false`, so callbacks run on the
+  server thread, and `Context.pause()` does not suspend the call - it schedules a pause for after
+  it returns. A loop around it freezes the game for the whole timeout. Emit a signal and let the
+  script wait with `event.pull`.
 - Clamp tunables through `net.ocgendustry.util.Tuning`; add a config category if the driver has defaults.
 
 ## Troubleshooting

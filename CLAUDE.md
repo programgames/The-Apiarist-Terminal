@@ -48,7 +48,7 @@ src/main/java/net/ocgendustry/
   driver/DriverAdvMutatron.java
   driver/DriverApiary.java     read-only driver; writes go through generic OC inventory calls
   util/Stacks.java             ItemStack -> Lua table, and the cheap output signature
-  util/Tuning.java             clamps for signalInterval / waitStep, shared by every driver
+  util/Tuning.java             clamps signalInterval, shared by every driver
   util/MutatronLogic.java      mutation-selection helper (no MC types) so logic is unit-testable
   client/GuiFactory|GuiModConfig.java   in-game config GUI
   command/OcGendustryCommand.java       /ocgendustry test advmutatron [fresh|reuse|all]
@@ -82,16 +82,20 @@ Read slot indices from the tile's own `slots()` accessors rather than hardcoding
 (ordering is user-visible). `DriverAdvMutatronDocExamplesTest` asserts on doc strings — keep them
 in sync when renaming or rewording.
 
-**Blocking helpers.** Cooperative waits only: loop on `ctx.pause(waitStepSeconds)` against a
-`System.currentTimeMillis()` deadline. Never `Thread.sleep`, never spin the server thread.
+**Blocking helpers.** Don't write any, in any driver. `Callback.direct()` defaults to `false`, so a
+callback runs on the **server thread**, and `Context.pause()` does **not** suspend it — it only
+schedules a pause for after the call returns. Looping on it holds the tick loop for the whole
+timeout; `logs/` recorded two `Running 60045ms behind` ticks before this was found. Waiting belongs
+in Lua, on the `_finished` signal. Two tests guard it: `MachineEnvironmentDocsTest` and
+`DriverAdvMutatronDocExamplesTest`.
 
 **Events.** Emission is gated by `Config.enableEvents` (global) **AND** the per-device
 `eventsEnabled` flag; `canUpdate()` returns that conjunction so ticking is skipped entirely when
 off. `update()` is throttled by `signalInterval` ticks. Every component exposes
-`setEventsEnabled/getEventsEnabled/areEventsEnabled` and `setSignalInterval/setWaitInterval/applyDefaultTuning`.
+`setEventsEnabled/getEventsEnabled/areEventsEnabled` and `setSignalInterval/applyDefaultTuning`.
 Signals: `advmutatron_started|finished|output`, `apiary_started|finished|output`.
 
-**Tunables.** Clamp through `Tuning.clampSignalInterval/clampWaitStep`; defaults come from
+**Tunables.** Clamp through `Tuning.clampSignalInterval`; defaults come from
 `Config` at environment creation and are re-read by `applyDefaultTuning()`. New pure logic belongs
 in `util/` so it can be tested without a Minecraft bootstrap.
 

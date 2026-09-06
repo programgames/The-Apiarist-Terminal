@@ -28,14 +28,13 @@ Use OpenComputers' inventory pushItems/pullItems with these slot indices.
   - { amount:number, capacity:number, fluid?:string } for mutagen tank.
 - getOutput(): table|nil
   - Current output in slot 2: { name, label?, nbt?, count } or nil if empty.
-- selectAndProduce(n:number[, timeout:number=60]): boolean, table|string?
-  - Validates inputs (parents, labware, empty output), selects the mutation, waits (ctx.pause) until finished, returns produced stack; returns false,reason on failure.
+- selectAndProduce(n:number): boolean, string?
+  - Validates inputs (parents, labware, empty output), selects the mutation, starts it and returns immediately. Wait for `advmutatron_finished`, then read `getOutput()`.
+  - It used to take a timeout and block until the cycle ended. It could not: a callback runs on the server thread and `Context.pause()` does not suspend it, so the loop froze the whole game for the timeout. See *Waiting* below.
 - selectAndProduceAsync(n:number): boolean, string?
-  - Same validation, selects, returns immediately; subscribe to the events below for feedback.
+  - Alias of `selectAndProduce`, kept for scripts written when the two differed.
 - setSignalInterval(ticks:number): boolean
   - Frequency of checks for event emission (in ticks between checks). Default 2 ticks.
-- setWaitInterval(seconds:number): boolean
-  - Wait time between checks for blocking flows. Default 0.2s.
 - applyDefaultTuning(): boolean
   - Reload and apply defaults from the mod config (Mod Options GUI or ocgendustry.cfg).
 
@@ -99,16 +98,26 @@ assert(ev, "timed out waiting for output")
 print("Produced:", stack.name, stack.count)
 ```
 
-Same as above but with cooperative wait:
+## Waiting for a cycle
+
+No callback waits, and none can. OpenComputers runs a callback on the server thread unless it is
+declared `direct` (the default is not), and `Context.pause()` does not suspend the call — it only
+schedules a pause for after it returns. A loop around it blocks the tick loop: two 60-second
+freezes were recorded in `logs/` before this was found. Wait in Lua instead:
 
 ```lua
-local component = require("component")
-local adv = component.advmutatron
+local event = require("event")
+local adv = require("component").advmutatron
 
-local ok, res = adv.selectAndProduce(1, 30) -- 30s timeout
-if not ok then error(res) end
+local ok, err = adv.selectAndProduce(1)
+if not ok then error(err) end
 
-print("Produced:", res.name, res.count)
+if event.pull(30, "advmutatron_finished") then
+  local out = adv.getOutput()
+  print("Produced:", out.name, out.count)
+else
+  print("still running after 30s")
+end
 ```
 
 ## Integration tests (creative, gated)

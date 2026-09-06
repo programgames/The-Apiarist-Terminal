@@ -117,23 +117,39 @@ for _, step in ipairs(plan) do
   local sel = select_output(step.out)
   if not sel then log('SKIP', 'desired output not offered by current parents') goto continue end
 
-  local okp, res = adv.selectAndProduce(sel, TIMEOUT)
-  if not okp then log('FAIL', res) goto continue end
+  -- selectAndProduce starts the cycle and returns; waiting happens here, on the signal. It used
+  -- to block until the end, which held the server thread for its whole timeout.
+  local okp, why = adv.selectAndProduce(sel)
+  if not okp then log('FAIL', why) goto continue end
+  if not event.pull(TIMEOUT, 'advmutatron_finished') then
+    log('FAIL', 'no advmutatron_finished within '..tostring(TIMEOUT)..'s')
+    goto continue
+  end
+  local res = adv.getOutput()
+  if not res then log('FAIL', 'cycle finished but the output slot is empty') goto continue end
   log('PASS produced', (res.label or res.name or '?'), 'x'..tostring(res.count))
   -- If apiary is present, process the queen then collect outputs; otherwise just pull to chest
   if move_queen_to_apiary() then
     log('apiary: processing queen ...')
-    -- Prefer the driver's cooperative blocker if available
-    local usedDriverWait = false
-    if apiary and apiary.waitForPrincess then
-      local ok, res = apiary.waitForPrincess(TIMEOUT)
-      usedDriverWait = true
-      if not ok then
-        log('apiary: waitForPrincess failed', tostring(res))
+    -- Wait on the signal and read the status: the driver no longer offers a blocking wait,
+    -- because a callback runs on the server thread and cannot suspend itself.
+    local queenGone = false
+    if apiary and apiary.getPrincessStatus then
+      local deadline = computer.uptime() + TIMEOUT
+      while computer.uptime() < deadline do
+        local st = apiary.getPrincessStatus()
+        if st.freed then queenGone = true break end
+        if st.error then log('apiary error:', tostring(st.error)) break end
+        if st.automated then log('apiary: remove the Automation upgrade') break end
+
+        event.pull(1, 'apiary_finished')
       end
+      if not queenGone then log('apiary: queen still alive after '..tostring(TIMEOUT)..'s') end
+    else
+      queenGone = wait_apiary_cycle(TIMEOUT)
     end
 
-    if (usedDriverWait and true) or (not usedDriverWait and wait_apiary_cycle(TIMEOUT)) then
+    if queenGone then
       -- pull outputs from apiary to chest using driver-provided slots if available
       local ok, slotsApi = pcall(function() return apiary.listSlots() end)
       if ok and slotsApi and slotsApi.outputs then

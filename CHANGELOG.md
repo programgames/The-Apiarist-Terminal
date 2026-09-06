@@ -23,6 +23,24 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   `testall.lua` walks the processing machines checking the expectations specific to each;
   `machine_test.lua` runs one machine through a full cycle and watches its signals.
 
+### Removed
+- `waitForPrincess` (`industrial_apiary`) and `setWaitInterval` (every component), along with the
+  `waitStepSeconds` config option. **This breaks scripts that call them.** The first could not work
+  and the second only tuned its loop. Wait on the `<component>_finished` signal instead, and read
+  `getPrincessStatus()` afterwards.
+
+### Changed
+- `selectAndProduce(n, timeout)` becomes `selectAndProduce(n)` and returns as soon as the cycle is
+  started; `selectAndProduceAsync`, which already did exactly that, is kept as an alias. The two
+  reference programs shipped in the jar were updated to match.
+- `DriverAdvMutatron.selectAndProduce` and `DriverApiary.waitForPrincess` looped on
+  `Context.pause()` waiting for the machine. `Callback.direct()` defaults to false, so those
+  callbacks run on the server thread, and pause does not suspend a call: it schedules one for after
+  the call returns. Each held the tick loop for its entire timeout -- the game log recorded two
+  ticks as `Running 60045ms behind` and `Running 60051ms behind`.
+- `waitForPrincess` did more than wait: inside its loop it rejected the Automation upgrade and
+  surfaced Forestry error states. That diagnosis lives on in `getPrincessStatus()`.
+
 ### Fixed
 - `OCGendustryMod.VERSION` was still `0.1.0` while the build produced `0.2.0`; both now report the same version.
 - OpenComputers was declared as a soft dependency (`after:opencomputers`) in `@Mod`, contradicting `mcmod.info`
