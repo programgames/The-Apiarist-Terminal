@@ -118,9 +118,17 @@ constants. Comments explain the *why* (game quirks), not the *what*.
 
 ```powershell
 .\gradlew.bat setupDevMods   # once: third-party mods into run/mods and run-server/mods
+.\gradlew.bat setupDevDisk   # the reference Lua programs, as a floppy in both dev worlds
 .\gradlew.bat runClient      # client, world in run/
 .\gradlew.bat runServer      # dedicated server, world in run-server/, needs a real terminal
 ```
+
+`setupDevDisk` writes `<world>/opencomputers/loot/apiarist/` plus the `loot.properties` that names
+it — OpenComputers reads both on `WorldEvent.Load`, so the world has to be reloaded before the
+floppy appears in the creative inventory. The layout is `usr/lib/apiarist.lua` and `usr/bin/*.lua`
+so OpenOS's `install` drops them where `package.path` and the shell already look. It is the only
+delivery route that assumes nothing about the computer: no hard drive, no internet card, and no
+guessing at the address of a managed filesystem OpenComputers only creates on first write.
 
 `.idea/runConfigurations/` carries the same two as shared IntelliJ configurations.
 

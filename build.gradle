@@ -212,6 +212,54 @@ dependencies {
     devMods "curse.maven:thermal-expansion-69163:2926431"       // Creative Energy Cell
 }
 
+// The reference Lua programs, delivered into a dev world as an OpenComputers floppy.
+//
+// OpenComputers scans <world>/opencomputers/loot/ when the world loads: loot.properties maps a
+// folder to a disk label, weight and dye colour, and the folder becomes the disk's filesystem.
+// Weight 0 keeps it out of dungeon chests while still registering it, which is what the openos
+// and oppm disks themselves do. Laying the files out under usr/ means OpenOS's `install` copies
+// them to /usr, where /usr/lib is already on package.path -- so require("apiarist") just works.
+//
+// This is the only route that needs nothing of the computer: no hard drive, no internet card, no
+// guessing at the address of a managed filesystem that OpenComputers only creates on first write.
+// The world has to be reloaded afterwards, since the scan happens on WorldEvent.Load.
+//
+//   .\gradlew.bat setupDevDisk    writes the disk into run/ and run-server/
+task setupDevDisk {
+    group = 'apiarist'
+    description = 'Installs the reference Lua programs as an OpenComputers loot floppy in both dev worlds'
+
+    doLast {
+        def scripts = file('src/main/resources/ocgendustry/scripts')
+        // The library is required by name; everything else is run by name. OpenOS puts /usr/lib on
+        // package.path and /usr/bin on the shell's PATH, so the split decides how each is reached.
+        def library = 'apiarist.lua'
+
+        // run/ is a client save, whose name the player chose; run-server/ always uses world/.
+        def worlds = []
+        file('run/saves').listFiles()?.each { if (it.directory) worlds << it }
+        worlds << file('run-server/world')
+
+        worlds.each { world ->
+            def disk = new File(world, 'opencomputers/loot/apiarist')
+            delete disk
+            copy {
+                from(scripts) { include library; into 'usr/lib' }
+                from(scripts) { exclude library; into 'usr/bin' }
+                into disk
+            }
+            new File(disk, '.prop').text = '{label="Apiarist Terminal"}\n'
+
+            def descriptor = new File(world, 'opencomputers/loot/loot.properties')
+            descriptor.parentFile.mkdirs()
+            descriptor.text = "# Written by ./gradlew setupDevDisk -- do not edit by hand.\n" +
+                "apiarist=Apiarist Terminal (Gendustry):0:dyeYellow\n"
+
+            logger.lifecycle("Apiarist disk -> ${disk}")
+        }
+    }
+}
+
 task setupDevMods {
     group = 'apiarist'
     description = 'Downloads the third-party mods a dev client and server need, into run/ and run-server/'
