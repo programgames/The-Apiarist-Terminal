@@ -37,7 +37,6 @@ minecraft {
 }
 
 repositories {
-    maven { url = 'https://maven.cil.li/' } // OpenComputers artifacts
     // CurseMaven lets us download CF-hosted jars via projectId/fileId
     maven { url = 'https://cursemaven.com' }
     // Forestry artifacts are hosted on ModMaven
@@ -52,19 +51,19 @@ repositories {
 }
 
 dependencies {
-    // OpenComputers API. compileOnly, not compile: on the runtime classpath this jar shadows the
-    // real mod's own li.cil.oc.api classes, and the two differ. A dev client running OpenComputers
-    // 1.8.7 then dies the moment a screen is drawn, with
-    // NoSuchMethodError: li.cil.oc.api.internal.TextBuffer.fill(IIIII)V -- a signature that only
-    // exists in the newer API. maven.cil.li publishes nothing past 1.7.5.x, so the version cannot
-    // be aligned; keeping the jar off the runtime classpath is the fix, and it is what happens in
-    // production anyway, where the API comes from the installed mod.
-    compileOnly 'li.cil.oc:OpenComputers:MC1.12.2-1.7.5.214:api'
-
-    // The tests read @Callback annotations by reflection, so they need the API at compile
-    // and at test runtime. testCompile is a separate configuration from the one the run
-    // tasks use, so this does not put the jar back in front of the real mod in game.
-    testCompile 'li.cil.oc:OpenComputers:MC1.12.2-1.7.5.214:api'
+    // Compile against the OpenComputers mod itself, deobfuscated, not against the API jar.
+    //
+    // The API published on maven.cil.li stops at 1.7.5.x while the mod anyone actually runs is
+    // 1.8.7, and the two differ: TextBuffer.fill(IIIII) exists only in the newer one. Whenever the
+    // old API reached the run classpath it shadowed the installed mod's own li.cil.oc.api classes
+    // and the server crashed the moment a screen was drawn. compileOnly kept it off that classpath
+    // under Gradle -- but IntelliJ maps compileOnly to Provided scope and puts it back, so the
+    // crash returned when launching from the IDE.
+    //
+    // deobfCompile on the mod removes the mismatch instead of hiding it: one version, compiled and
+    // run against the same classes, in both launch paths. It also means the mod must not be copied
+    // into run/mods -- see setupDevMods below.
+    deobfCompile "curse.maven:opencomputers-223008:6057571"
 
     // Prefer automatic download + deobf from CurseMaven if IDs are provided in gradle.properties
     if (project.hasProperty('gendustryProjectId') && project.hasProperty('gendustryFileId') && gendustryProjectId && gendustryFileId) {
@@ -189,8 +188,9 @@ if ((project.findProperty('curseforgeProjectId') ?: System.getenv('CURSEFORGE_PR
 // on and a creative power source. They are downloaded from CurseMaven and copied into the run
 // directories, never committed -- redistributing someone else's jar is not ours to do.
 //
-// Gendustry, bdlib and Forestry are absent on purpose: the build already puts them on the
-// classpath, and a second copy in run/mods makes FML refuse to start on a duplicate mod id.
+// OpenComputers, Gendustry, bdlib and Forestry are absent on purpose: the build already puts
+// them on the classpath, and a second copy in run/mods makes FML refuse to start on a
+// duplicate mod id.
 //
 //   .\gradlew.bat setupDevMods     downloads them and fills run/mods and run-server/mods
 configurations {
@@ -200,7 +200,6 @@ configurations {
 dependencies {
     devMods "curse.maven:jei-238222:8752694"                    // Just Enough Items
     devMods "curse.maven:extra-utilities-225561:2678374"        // Creative Energy Source
-    devMods "curse.maven:opencomputers-223008:6057571"          // OpenComputers 1.8.7
     devMods "curse.maven:binnies-mods-223525:2916129"           // Binnie's: Extra Bees, Genetics
     devMods "curse.maven:codechicken-lib-1-8-242818:2779848"    // required by Thermal Expansion
     devMods "curse.maven:cofh-core-69162:2920433"
