@@ -108,7 +108,7 @@ every tick, which would turn the signal into noise. Poll `listTanks()` instead.
 - Per-device runtime: `setEventsEnabled(boolean)` / `getEventsEnabled()` / `areEventsEnabled()`.
 
 Tuning defaults for all eight live in the `processing_machines` category
-(`signalIntervalTicks`, `waitStepSeconds`).
+(`signalIntervalTicks`, `defaultEventsEnabled`).
 
 ## Quick start
 

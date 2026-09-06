@@ -22,12 +22,10 @@ public final class Config {
 
     // Advanced Mutatron defaults
     public static int advMutatronSignalInterval = 2;     // ticks
-    public static double advMutatronWaitInterval = 0.2;  // seconds
     public static int advMutatronSignalIntervalMax = 40; // cap safety
 
     // Apiary defaults
     public static int apiarySignalInterval = 2;          // ticks
-    public static double apiaryWaitInterval = 0.2;       // seconds
     public static int apiarySignalIntervalMax = 40;      // cap safety
 
     // Shared defaults for the processing machines (everything but the Advanced Mutatron and the
@@ -99,14 +97,6 @@ public final class Config {
             advMutatronSignalIntervalMax,
             "Time between checks for OC signals (in ticks). Lower = more responsive, higher = less overhead."
         );
-        advMutatronWaitInterval = cfg.getFloat(
-            "waitStepSeconds",
-            CAT_ADV_MUTATRON,
-            (float) advMutatronWaitInterval,
-            0.05f,
-            5.0f,
-            "Time between checks for blocking wait steps (in seconds)."
-        );
         advMutatronDefaultEventsEnabled = cfg.getBoolean(
             "defaultEventsEnabled",
             CAT_ADV_MUTATRON,
@@ -122,14 +112,6 @@ public final class Config {
             1,
             apiarySignalIntervalMax,
             "Time between checks for OC signals (in ticks). Lower = more responsive, higher = less overhead."
-        );
-        apiaryWaitInterval = cfg.getFloat(
-            "waitStepSeconds",
-            CAT_APIARY,
-            (float) apiaryWaitInterval,
-            0.05f,
-            5.0f,
-            "Time between checks for blocking wait steps (in seconds)."
         );
         apiaryDefaultEventsEnabled = cfg.getBoolean(
             "defaultEventsEnabled",

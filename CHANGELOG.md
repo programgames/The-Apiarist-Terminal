@@ -22,6 +22,19 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Documentation: `docs/components/processing_machines.md`.
 
 ### Fixed
+- The two hand-written drivers carried the same blocking pattern, inherited from before this work:
+  `DriverAdvMutatron.selectAndProduce` and `DriverApiary.waitForPrincess` looped on
+  `Context.pause()`. Because `Callback.direct()` defaults to false these run on the server thread,
+  and pause does not suspend a call, so each froze the game for its whole timeout — the game log
+  recorded two `Running 60045ms behind` ticks. `selectAndProduce` now selects, starts and returns
+  immediately (`selectAndProduceAsync` is kept as an alias), and `waitForPrincess` is replaced by
+  the non-blocking `getPrincessStatus()`, which keeps the diagnosis it did in its loop: queen slot
+  state, the forbidden Automation upgrade, and the first Forestry error. Wait on
+  `advmutatron_finished` / `apiary_finished` instead.
+- Both hand-written drivers also sampled their working flag only every `signalIntervalTicks` and so
+  dropped the transitions of a short cycle, like the processing machines did.
+- The now-unused `setWaitInterval` callback and the `waitStepSeconds` config option are removed
+  from all three categories rather than left as knobs that govern nothing.
 - The Genetic Transposer's `isValidInputs` passed its two stacks to Gendustry in the wrong order.
   `TileTransposer.isValidInputs` takes (blank, template) — that is how Gendustry's own
   `isItemValidForSlot` calls it from either slot — so every pair was reported as

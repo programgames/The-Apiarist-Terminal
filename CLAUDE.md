@@ -84,17 +84,19 @@ Read slot indices from the tile's own `slots()` accessors rather than hardcoding
 (ordering is user-visible). `DriverAdvMutatronDocExamplesTest` asserts on doc strings — keep them
 in sync when renaming or rewording.
 
-**Blocking helpers.** Don't write any. `Context.pause()` does **not** suspend a callback: it just
-schedules a pause for after the call returns, so looping on it busy-waits and holds the server
-thread for the whole timeout. Waiting belongs in Lua, on the `_finished` signal. `DriverApiary` and
-`DriverAdvMutatron` still carry that broken pattern (`waitForFinish`, `waitForPrincess`) and need
-the same treatment.
+**Blocking helpers.** Don't write any, in any driver. `Callback.direct()` defaults to `false`, so a
+callback runs on the **server thread**, and `Context.pause()` does **not** suspend it — it only
+schedules a pause for after the call returns. Looping on it holds the tick loop for the whole
+timeout; `logs/` recorded two `Running 60045ms behind` ticks before this was found. Waiting belongs
+in Lua, on the `_finished` signal. Two tests guard it: `MachineEnvironmentDocsTest` and
+`DriverAdvMutatronDocExamplesTest`.
 
 **Events.** Emission is gated by `Config.enableEvents` (global) **AND** the per-device
 `eventsEnabled` flag; `canUpdate()` returns that conjunction so ticking is skipped entirely when
 off. `update()` is throttled by `signalInterval` ticks. Every component exposes
-`setEventsEnabled/getEventsEnabled/areEventsEnabled` and `setSignalInterval/applyDefaultTuning`
-(the two hand written drivers also still expose `setWaitInterval`).
+`setEventsEnabled/getEventsEnabled/areEventsEnabled` and `setSignalInterval/applyDefaultTuning`.
+`signalInterval` throttles the output scan only: the started/finished edges are read every tick so
+a cycle shorter than the interval still raises both.
 Signals: `advmutatron_started|finished|output`, `apiary_started|finished|output`.
 
 **Tunables.** Clamp through `Tuning.clampSignalInterval/clampWaitStep`; defaults come from

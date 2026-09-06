@@ -61,8 +61,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
     public static final class Environment extends AbstractManagedEnvironment implements NamedBlock {
         private final TileApiary tile;
         private final String componentName = "industrial_apiary";
-        private double waitStepSeconds = 0.2; // cooperative wait step for blocking helpers
-        private int signalInterval = 2; // ticks
+            private int signalInterval = 2; // ticks
         private int tickCounter = 0;
         private boolean lastWorking = false;
         private String lastOutputSig = "";
@@ -84,7 +83,6 @@ public final class DriverApiary extends DriverSidedTileEntity {
                 .create());
 
             signalInterval = Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax);
-            waitStepSeconds = Tuning.clampWaitStep(Config.apiaryWaitInterval);
             eventsEnabled = Config.apiaryDefaultEventsEnabled;
         }
 
@@ -107,9 +105,9 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public void update() {
             if (!Config.enableEvents || !eventsEnabled) return;
 
-            tickCounter++;
-            if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
-
+            // Read the progress every tick: a cycle shorter than signalInterval would otherwise
+            // start and finish between two samples and raise neither signal. Only the output
+            // scan below is throttled.
             boolean working = false;
             IBeekeepingLogic logic = tile.getBeekeepingLogic();
             if (logic != null) {
@@ -120,6 +118,9 @@ public final class DriverApiary extends DriverSidedTileEntity {
             if (working && !lastWorking && node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_started"});
             if (!working && lastWorking && node() != null) node().sendToReachable("computer.signal", new Object[]{"apiary_finished"});
             lastWorking = working;
+
+            tickCounter++;
+            if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
 
             // Emit output change
             String sig = signatureOutputs();
@@ -265,13 +266,6 @@ public final class DriverApiary extends DriverSidedTileEntity {
             return new Object[]{ (logic != null) ? (logic.getBeeProgressPercent() / 100.0f) : 0.0f };
         }
 
-        @Callback(doc = "function(seconds:number):boolean -- Set the cooperative wait step used by blocking operations (default 0.2s, range 0.05..5). Lower = more responsive, higher = less overhead.")
-        public Object[] setWaitInterval(Context ctx, Arguments args) {
-            waitStepSeconds = Tuning.clampWaitStep(args.checkDouble(0));
-
-            return new Object[]{ true };
-        }
-
         @Callback(doc = "function(ticks:number):boolean -- Set how often signals are emitted (every N ticks, min 1). Lower = more responsive, higher = less overhead.")
         public Object[] setSignalInterval(Context ctx, Arguments args) {
             signalInterval = Tuning.clampSignalInterval(args.checkInteger(0), Config.apiarySignalIntervalMax);
@@ -284,52 +278,58 @@ public final class DriverApiary extends DriverSidedTileEntity {
             Config.syncFromFile();
 
             signalInterval = Tuning.clampSignalInterval(Config.apiarySignalInterval, Config.apiarySignalIntervalMax);
-            waitStepSeconds = Tuning.clampWaitStep(Config.apiaryWaitInterval);
             eventsEnabled = Config.apiaryDefaultEventsEnabled;
 
             return new Object[]{ true };
         }
 
-        @Callback(doc = "function([timeout:number=180]):boolean,string? -- Wait (non-freezing) until the current queen dies and the queen slot is freed. If a princess is inserted, this continues waiting until a queen is bred and killed, or the timeout elapses. Returns false,reason on timeout or if no princess/queen present.")
-        public Object[] waitForPrincess(Context ctx, Arguments args) {
-            double timeoutSec = args.count() > 0 ? Math.max(0, args.checkDouble(0)) : 180.0;
+        @Callback(doc = "function():table -- Non-blocking status of the queen slot: { occupied:boolean, type:string, freed:boolean, automated:boolean, error?:string }. freed is true once the queen slot is empty, which is what a breeding cycle waits for; wait for it with event.pull(timeout, \"apiary_finished\") rather than blocking, then read this again.")
+        public Object[] getPrincessStatus(Context ctx, Arguments args) {
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
 
-            // Resolve bee root to distinguish queen vs princess
             ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
-            if (!(root instanceof IBeeRoot)) return new Object[]{ false, "bee root not available" };
+            if (!(root instanceof IBeeRoot)) {
+                out.put("occupied", false);
+                out.put("type", "unknown");
+                out.put("freed", false);
+                out.put("automated", false);
+                out.put("error", "bee root not available");
+
+                return new Object[]{ out };
+            }
 
             IBeeRoot beeRoot = (IBeeRoot) root;
-
-            // Require a queen to be present initially
             ItemStack slot0 = getStackInSlot(SLOT_QUEEN);
-            if (slot0 == null || slot0.isEmpty() || (!beeRoot.isMember(slot0, EnumBeeType.QUEEN) && !beeRoot.isMember(slot0, EnumBeeType.PRINCESS))) {
-                return new Object[]{ false, "no princess/queen in slot" };
+            boolean occupied = slot0 != null && !slot0.isEmpty();
+
+            String type = "none";
+            if (occupied) {
+                if (beeRoot.isMember(slot0, EnumBeeType.QUEEN)) type = "queen";
+                else if (beeRoot.isMember(slot0, EnumBeeType.PRINCESS)) type = "princess";
+                else type = "other";
             }
 
-            long deadline = System.currentTimeMillis() + (long) (timeoutSec * 1000L);
+            out.put("occupied", occupied);
+            out.put("type", type);
+            out.put("freed", !occupied);
 
-            while (System.currentTimeMillis() < deadline) {
-                // Success when queen slot becomes empty (queen died)
-                ItemStack cur = getStackInSlot(SLOT_QUEEN);
-                if (cur == null || cur.isEmpty()) return new Object[]{ true };
+            // An automation upgrade empties the queen slot by itself, so a script watching for a
+            // freed slot would draw the wrong conclusion. Surface it rather than let it mislead.
+            ApiaryModifiers mods = tile.getModifiers();
+            out.put("automated", mods != null && mods.isAutomated);
 
-                ApiaryModifiers m2 = tile.getModifiers();
-                if (m2 != null && m2.isAutomated) return new Object[]{ false, "automation upgrade should not be used" };
-
-                IErrorLogic err = tile.getErrorLogic();
-                if (err != null && err.hasErrors()) {
-                    // Surface first error for better diagnostics
-                    for (forestry.api.core.IErrorState st : err.getErrorStates()) {
-                        if (st != null && st.getUniqueName() != null) { return new Object[]{ false, st.getUniqueName()}; }
+            IErrorLogic err = tile.getErrorLogic();
+            if (err != null && err.hasErrors()) {
+                for (forestry.api.core.IErrorState st : err.getErrorStates()) {
+                    if (st != null && st.getUniqueName() != null) {
+                        out.put("error", st.getUniqueName());
+                        break;
                     }
-
-                    return new Object[]{ false, "apiary error" };
                 }
-
-                ctx.pause(waitStepSeconds);
+                if (!out.containsKey("error")) out.put("error", "apiary error");
             }
 
-            return new Object[]{ false, "timeout" };
+            return new Object[]{ out };
         }
 
         @Callback(doc = "function():table -- Returns effective modifiers from upgrades: {production, lifespan, territory, mutation, flowering, geneticDecay, isSealed, isSelfLighted, isSunlightSimulated, isAutomated, isCollectingPollen, energy, temperature, humidity}")
