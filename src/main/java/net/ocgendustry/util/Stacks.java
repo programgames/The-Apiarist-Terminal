@@ -11,6 +11,9 @@ import java.util.LinkedHashMap;
  * getDisplayName() on a Forestry genetic item that has no genome NBT makes Forestry spam the log.
  */
 public final class Stacks {
+    /** What an empty slot signs as. Never a value a real stack can produce. */
+    public static final String EMPTY_SIGNATURE = "-";
+
     private Stacks() {}
 
     /** True when the stack is null or empty; both cases mean "nothing in that slot". */
@@ -49,7 +52,7 @@ public final class Stacks {
      * lookup, no NBT serialisation — which is the point of not simply comparing stacks.
      */
     public static String signature(ItemStack stack) {
-        if (isEmpty(stack)) return "-";
+        if (isEmpty(stack)) return EMPTY_SIGNATURE;
 
         String name = (stack.getItem() != null && stack.getItem().getRegistryName() != null)
             ? stack.getItem().getRegistryName().toString() : "?";
@@ -57,6 +60,14 @@ public final class Stacks {
         int nbt = stack.hasTagCompound() && stack.getTagCompound() != null
             ? stack.getTagCompound().hashCode() : 0;
 
-        return name + "@" + stack.getItemDamage() + "@" + stack.getCount() + "@" + nbt;
+        return signature(name, stack.getItemDamage(), stack.getCount(), nbt);
+    }
+
+    /**
+     * The part of {@link #signature(ItemStack)} that has no Minecraft in it, so the rule can be
+     * tested without a game. {@code StacksTest} covers what the four fields are for.
+     */
+    public static String signature(String name, int meta, int count, int nbtHash) {
+        return name + "@" + meta + "@" + count + "@" + nbtHash;
     }
 }

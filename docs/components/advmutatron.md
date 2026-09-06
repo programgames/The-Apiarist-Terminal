@@ -20,6 +20,10 @@ Use OpenComputers' inventory pushItems/pullItems with these slot indices.
   - Select by 1-based index from listMutations() or by raw selector key (4..9). Selection may auto-start; returns false,reason on invalid selection.
 - start(): boolean
   - Attempts to start with current selection (not usually needed if selection auto-starts).
+- isWorking(): boolean
+  - True while the machine is processing. Same callback as the eight processing machines.
+- getEnergy(): table
+  - `{ stored, capacity }`, like the processing machines.
 - getProgress(): number
   - 0..1 progress reported by the machine.
 - canStart(): boolean

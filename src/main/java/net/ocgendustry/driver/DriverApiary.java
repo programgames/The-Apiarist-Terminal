@@ -10,6 +10,7 @@ import li.cil.oc.api.network.Visibility;
 import li.cil.oc.api.prefab.AbstractManagedEnvironment;
 import li.cil.oc.api.prefab.DriverSidedTileEntity;
 import net.bdew.gendustry.api.ApiaryModifiers;
+import net.bdew.gendustry.gui.rscontrol.RSMode;
 import net.bdew.gendustry.machines.apiary.TileApiary;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -75,10 +76,21 @@ public final class DriverApiary extends DriverSidedTileEntity {
 
         // Slot layout from Gendustry TileApiary.scala (mc1.12):
         // 0: queen/princess, 1: drone, 2-5: upgrades, 6-14: output
-        private static final int SLOT_QUEEN = 0;
-        private static final int SLOT_DRONE = 1;
-        private static final int[] SLOTS_UPGRADES = new int[]{2, 3, 4, 5};
-        private static final int[] SLOTS_OUTPUT = new int[]{6, 7, 8, 9, 10, 11, 12, 13, 14};
+        // Slot indices come from the machine, never from constants: Gendustry names them, so a
+        // reordering on its side cannot leave this driver reading the wrong slot. The eight
+        // processing machines were written this way from the start; these are now aligned.
+        private int slotQueen() { return tile.slots().queen(); }
+        private int slotDrone() { return tile.slots().drone(); }
+
+        private int[] slotsUpgrades() { return range(tile.slots().upgrades()); }
+        private int[] slotsOutput()   { return range(tile.slots().output()); }
+
+        private static int[] range(scala.collection.immutable.Range.Inclusive r) {
+            int[] out = new int[r.length()];
+            for (int i = 0; i < out.length; i++) out[i] = r.apply(i);
+
+            return out;
+        }
 
         public Environment(TileApiary tile) {
             this.tile = tile;
@@ -161,7 +173,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
 
         private String signatureOutputs() {
             StringBuilder sb = new StringBuilder();
-            for (int slot : SLOTS_OUTPUT) {
+            for (int slot : slotsOutput()) {
                 ItemStack st = getStackInSlot(slot);
                 if (st != null && !st.isEmpty() && st.getItem() != null && st.getItem().getRegistryName() != null) {
                     sb.append(st.getItem().getRegistryName().toString()).append('@').append(st.getCount()).append('|');
@@ -206,11 +218,11 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public Object[] listSlots(Context ctx, Arguments args) {
             LinkedHashMap<String, Object> slots = new LinkedHashMap<>();
 
-            slots.put("queen", SLOT_QUEEN);
-            slots.put("drone", SLOT_DRONE);
-            slots.put("bees", new Object[]{SLOT_QUEEN, SLOT_DRONE});
-            slots.put("upgrades", toArray(SLOTS_UPGRADES));
-            slots.put("outputs", toArray(SLOTS_OUTPUT));
+            slots.put("queen", slotQueen());
+            slots.put("drone", slotDrone());
+            slots.put("bees", new Object[]{slotQueen(), slotDrone()});
+            slots.put("upgrades", toArray(slotsUpgrades()));
+            slots.put("outputs", toArray(slotsOutput()));
 
             return new Object[]{slots};
         }
@@ -219,14 +231,14 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public Object[] getBees(Context ctx, Arguments args) {
             LinkedHashMap<String, Object> out = new LinkedHashMap<>();
 
-            ItemStack queen = getStackInSlot(SLOT_QUEEN);
+            ItemStack queen = getStackInSlot(slotQueen());
             if (queen != null && !queen.isEmpty()) {
                 LinkedHashMap<String, Object> q = new LinkedHashMap<>();
                 putStackInfo(q, queen);
                 out.put("queen", q);
             }
 
-            ItemStack drone = getStackInSlot(SLOT_DRONE);
+            ItemStack drone = getStackInSlot(slotDrone());
             if (drone != null && !drone.isEmpty()) {
                 LinkedHashMap<String, Object> d = new LinkedHashMap<>();
                 putStackInfo(d, drone);
@@ -240,7 +252,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public Object[] listUpgrades(Context ctx, Arguments args) {
             List<Object> arr = new ArrayList<>();
 
-            for (int slot : SLOTS_UPGRADES) {
+            for (int slot : slotsUpgrades()) {
                 ItemStack stack = getStackInSlot(slot);
                 if (stack == null || stack.isEmpty()) continue;
 
@@ -258,7 +270,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
         public Object[] listOutputs(Context ctx, Arguments args) {
             List<Object> arr = new ArrayList<>();
 
-            for (int slot : SLOTS_OUTPUT) {
+            for (int slot : slotsOutput()) {
                 ItemStack stack = getStackInSlot(slot);
                 if (stack == null || stack.isEmpty()) continue;
 
@@ -269,6 +281,21 @@ public final class DriverApiary extends DriverSidedTileEntity {
             }
 
             return new Object[]{ arr.toArray() };
+        }
+
+        @Callback(doc = "function():boolean -- Returns true while a bee cycle is in progress.")
+        public Object[] isWorking(Context ctx, Arguments args) {
+            return new Object[]{ currentlyWorking() };
+        }
+
+        @Callback(doc = "function():table -- Returns the energy buffer: { stored:number, capacity:number }.")
+        public Object[] getEnergy(Context ctx, Arguments args) {
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+
+            out.put("stored", tile.power().stored());
+            out.put("capacity", tile.power().capacity());
+
+            return new Object[]{ out };
         }
 
         @Callback(doc = "function():number -- Returns current work progress from Forestry logic as a 0..1 fraction.")
@@ -312,7 +339,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
             }
 
             IBeeRoot beeRoot = (IBeeRoot) root;
-            ItemStack slot0 = getStackInSlot(SLOT_QUEEN);
+            ItemStack slot0 = getStackInSlot(slotQueen());
             boolean occupied = slot0 != null && !slot0.isEmpty();
 
             String type = "none";
@@ -474,6 +501,31 @@ public final class DriverApiary extends DriverSidedTileEntity {
             }
 
             return new Object[]{ out };
+        }
+
+        @Callback(doc = "function():table -- Returns the redstone control state: { mode:string, canWork:boolean }. mode is one of ALWAYS, NEVER, RS_ON, RS_OFF -- the same four the machine's GUI button cycles through; canWork says whether the machine is allowed to run right now under that mode.")
+        public Object[] getRedstoneMode(Context ctx, Arguments args) {
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+
+            out.put("mode", String.valueOf(tile.rsmode().value()));
+            out.put("canWork", tile.canWork());
+
+            return new Object[]{ out };
+        }
+
+        @Callback(doc = "function(mode:string):boolean,string? -- Sets the redstone control mode to ALWAYS, NEVER, RS_ON or RS_OFF; returns false plus the accepted values when given anything else. This is the one callback in the mod that changes a machine rather than reading it: it is how a script stops and restarts an apiary.")
+        public Object[] setRedstoneMode(Context ctx, Arguments args) {
+            String wanted = args.checkString(0).toUpperCase(java.util.Locale.ROOT);
+
+            try {
+                // withName throws NoSuchElementException on an unknown name; turning that into a
+                // false plus a reason keeps the callback contract of never throwing at a script.
+                tile.rsmode().$colon$eq(RSMode.withName(wanted));
+            } catch (RuntimeException unknown) {
+                return new Object[]{ false, "unknown mode: " + wanted + " (expected ALWAYS, NEVER, RS_ON or RS_OFF)" };
+            }
+
+            return new Object[]{ true };
         }
 
         @Callback(doc = "function():table -- Returns environment info: { temperature:string, humidity:string }.")

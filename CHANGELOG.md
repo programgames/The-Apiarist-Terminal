@@ -7,6 +7,15 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ## [Unreleased]
 
 ### Added
+- `industrial_apiary` gains `getRedstoneMode()` and `setRedstoneMode(mode)`, the first callback in
+  the mod that changes a machine rather than reading it: it is how a script stops an apiary and
+  starts it again. The four modes are the ones the machine's own GUI button cycles through.
+- `advmutatron` and `industrial_apiary` gain `isWorking()` and `getEnergy()`, which the eight
+  processing machines already had. A script no longer has to special-case them.
+- `ocgendustry/scripts/apiarist.lua`, a library that restores the one-call ergonomics the blocking
+  callbacks used to offer -- `machine:runCycle(timeout)`, `adv:produce(n, timeout)`,
+  `apiary:waitForPrincess(timeout)` -- with the waiting done in Lua, where it is allowed.
+
 - Components for the eight remaining Gendustry machines: `mutatron`, `genetic_sampler`,
   `genetic_imprinter`, `genetic_replicator`, `genetic_transposer`, `dna_extractor`,
   `protein_liquifier` and `mutagen_producer`.
@@ -31,6 +40,11 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   difference between 44 species and 408. Both accept a UID, an allele name or a display name.
 - `species.lua`, which browses that registry from the game: an overview grouped by the mod that
   registered each species, a filtered listing, one genome in karyotype order, and a dump to file.
+
+### Changed
+- The two hand-written drivers read their slot indices from `tile.slots()` instead of constants,
+  as the eight processing machines already did. The constants happened to be right, but a
+  Gendustry reorder would have made them silently wrong.
 
 ### Changed
 - The started/finished/output decisions moved to `util/SignalState`, shared by all three drivers

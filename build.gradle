@@ -66,6 +66,12 @@ dependencies {
     // tasks use, so this does not put the jar back in front of the real mod in game.
     testCompile 'li.cil.oc:OpenComputers:MC1.12.2-1.7.5.214:api'
 
+    // Naming a Gendustry tile in a test loads that class, and it implements the RF and IC2
+    // energy interfaces. Both are compileOnly for the mod itself; the tests need them on
+    // their own runtime classpath or the class fails to define.
+    testCompile 'cofh:RedstoneFlux:1.12-2.1.0.6:universal'
+    testCompile 'net.industrial-craft:industrialcraft-2:2.8.170-ex112:api'
+
     // Prefer automatic download + deobf from CurseMaven if IDs are provided in gradle.properties
     if (project.hasProperty('gendustryProjectId') && project.hasProperty('gendustryFileId') && gendustryProjectId && gendustryFileId) {
         deobfCompile "curse.maven:gendustry-${gendustryProjectId}:${gendustryFileId}"

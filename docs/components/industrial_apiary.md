@@ -38,6 +38,14 @@ Use OpenComputers' inventory pushItems/pullItems with these slot indices.
 - listSpeciesTemplates([filter:string]): table
   - Every registered bee species as `{ uid, name, dominant, hasTemplate }`, read from Forestry's allele registry. **Not** built by concatenating a prefix and a name: species come from many mods with different prefixes, and guessing a UID only ever finds the vanilla Forestry ones.
   - `filter` keeps the species whose uid or name contains it, case-insensitively. A large pack registers hundreds of species, so filter when you can.
+- isWorking(): boolean
+  - True while a bee cycle is in progress. Same callback as the eight processing machines, so a script can treat every component the same way.
+- getEnergy(): table
+  - `{ stored, capacity }`. Also the same as the processing machines; OpenComputers' generic energy driver still offers `getEnergyStored` alongside it.
+- getRedstoneMode(): table
+  - `{ mode, canWork }`. `mode` is `ALWAYS`, `NEVER`, `RS_ON` or `RS_OFF` — the four the GUI button cycles through. `canWork` says whether the machine is allowed to run right now under that mode.
+- setRedstoneMode(mode:string): boolean, string?
+  - **The one callback in this mod that changes a machine rather than reading it.** It is how a script stops an apiary and starts it again — to pause breeding at night, or to hold a line while it collects. Returns `false` plus the accepted values on an unknown mode rather than throwing.
 - getPrincessStatus(): table
   - Non-blocking view of the queen slot: `{ occupied, type, freed, automated, error? }`. `type` is `queen`, `princess`, `other` or `none`; `freed` is true once the slot is empty, which is what a breeding cycle ends with; `automated` reports the Automation upgrade, which empties the slot by itself and would make `freed` mean something else; `error` carries the first Forestry error state when there is one.
   - This replaces `waitForPrincess([timeout])`, which blocked until the queen died. It could not work: a callback runs on the server thread and `Context.pause()` does not suspend it, so the loop froze the whole game for its timeout. Wait on the `apiary_finished` signal instead, then read this.

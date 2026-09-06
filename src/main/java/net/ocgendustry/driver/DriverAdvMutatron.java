@@ -67,7 +67,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             signals = new SignalState(
                 Tuning.clampSignalInterval(Config.advMutatronSignalInterval, Config.advMutatronSignalIntervalMax),
                 tile.isWorking(),
-                signature(tile.getStackInSlot(2)));
+                signature(tile.getStackInSlot(slotOutput())));
 
             eventsEnabled = Config.advMutatronDefaultEventsEnabled;
         }
@@ -123,7 +123,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             // Reading the output slot is the expensive half, so that one is throttled.
             if (!signals.dueForOutputScan()) return;
 
-            ItemStack out = tile.getStackInSlot(2);
+            ItemStack out = tile.getStackInSlot(slotOutput());
             if (signals.outputChanged(signature(out))) {
                 if (node() != null) node().sendToReachable("computer.signal", new Object[]{"advmutatron_output", stackInfo(out)});
             }
@@ -190,10 +190,10 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
 
         // Return null if OK, otherwise an error reason string
         private String checkPreconditionsBeforeSelect() {
-            ItemStack in1 = tile.getStackInSlot(0);
-            ItemStack in2 = tile.getStackInSlot(1);
-            ItemStack lab = tile.getStackInSlot(3);
-            ItemStack out = tile.getStackInSlot(2);
+            ItemStack in1 = tile.getStackInSlot(slotIn1());
+            ItemStack in2 = tile.getStackInSlot(slotIn2());
+            ItemStack lab = tile.getStackInSlot(slotLabware());
+            ItemStack out = tile.getStackInSlot(slotOutput());
 
             if (in1 == null || in1.isEmpty()) return "missing parent 1";
             if (in2 == null || in2.isEmpty()) return "missing parent 2";
@@ -203,17 +203,52 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             return null;
         }
 
+        // Slot indices come from the machine, never from constants. Gendustry names them, so a
+        // reordering on its side cannot leave this driver reading the wrong slot -- the mistake the
+        // eight processing machines were written to avoid from the start.
+        private int slotIn1()     { return tile.slots().inIndividual1(); }
+        private int slotIn2()     { return tile.slots().inIndividual2(); }
+        private int slotLabware() { return tile.slots().inLabware(); }
+        private int slotOutput()  { return tile.slots().outIndividual(); }
+
+        private int[] slotSelectors() {
+            scala.collection.immutable.Range.Inclusive range = tile.slots().selectors();
+            int[] out = new int[range.length()];
+            for (int i = 0; i < out.length; i++) out[i] = range.apply(i);
+
+            return out;
+        }
+
         @Callback(doc = "function():table -- Returns slot indices for generic item transfer: { in1:number, in2:number, labware:number, output:number, selectors:number[] }")
         public Object[] listSlots(Context ctx, Arguments args) {
             LinkedHashMap<String, Object> slots = new LinkedHashMap<>();
 
-            slots.put("in1", 0);
-            slots.put("in2", 1);
-            slots.put("labware", 3);
-            slots.put("output", 2);
-            slots.put("selectors", new Object[]{4, 5, 6, 7, 8, 9});
+            slots.put("in1", slotIn1());
+            slots.put("in2", slotIn2());
+            slots.put("labware", slotLabware());
+            slots.put("output", slotOutput());
+
+            int[] selectors = slotSelectors();
+            Object[] boxed = new Object[selectors.length];
+            for (int i = 0; i < selectors.length; i++) boxed[i] = selectors[i];
+            slots.put("selectors", boxed);
 
             return new Object[]{ slots };
+        }
+
+        @Callback(doc = "function():boolean -- Returns true while the machine is processing.")
+        public Object[] isWorking(Context ctx, Arguments args) {
+            return new Object[]{ tile.isWorking() };
+        }
+
+        @Callback(doc = "function():table -- Returns the energy buffer: { stored:number, capacity:number }.")
+        public Object[] getEnergy(Context ctx, Arguments args) {
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+
+            out.put("stored", tile.power().stored());
+            out.put("capacity", tile.power().capacity());
+
+            return new Object[]{ out };
         }
 
         @Callback(doc = "function():number -- Returns current work progress (0..1).")
@@ -270,7 +305,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
 
         @Callback(doc = "function():table|nil -- Returns the current output stack from slot 2 as {name,label?,nbt?,count}, or nil if empty.")
         public Object[] getOutput(Context ctx, Arguments args) {
-            ItemStack out = tile.getStackInSlot(2);
+            ItemStack out = tile.getStackInSlot(slotOutput());
             if (out == null || out.isEmpty()) return new Object[]{ null };
 
             return new Object[]{ stackInfo(out) };

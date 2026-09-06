@@ -196,6 +196,27 @@ end
 short cycle cannot slip between two samples. `setSignalInterval(ticks)` only governs how often the
 output slots are scanned for `_output`.
 
+## The convenience layer
+
+Removing the blocking callbacks cost a real convenience: `selectAndProduce(n, timeout)` used to be
+one line that started a cycle and handed back the product. `ocgendustry/scripts/apiarist.lua`
+restores that, with the waiting moved to the side where waiting is allowed.
+
+```lua
+local apiarist = require("apiarist")
+
+local sampler = apiarist.wrap("genetic_sampler")
+local produced = sampler:runCycle(30)      -- start if needed, wait, return the outputs
+
+local adv = apiarist.wrap("advmutatron")
+local bee = adv:produce(1, 60)             -- select a mutation, run it, return the stack
+```
+
+It wraps all ten components, resolves ghost components left by a replaced Adapter, and treats
+`start()` answering false as normal — the machine usually started itself a tick earlier.
+
+Copy it to `/lib/apiarist.lua` on the computer to `require` it.
+
 ## Why one class
 
 All eight components are instances of a single `final` class, `MachineEnvironment`, configured by a
