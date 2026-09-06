@@ -305,3 +305,42 @@ max-tick-time=60000
         logger.lifecycle("run/mods and run-server/mods ready: ${configurations.devMods.files.size()} mods")
     }
 }
+
+// ForgeGradle 2.3 predates Gradle 4's build/classes/java/<sourceSet> layout. It means to swap the
+// main source set's classes directory for the built jar on the run classpath, but under Gradle
+// 4.10 it looks for the old build/classes/main, finds nothing to remove, and leaves the jar in
+// place of a directory that is still missing. The result is a dev launch with no mod in it: FML
+// reports the 23 third-party mods and not ours, no error, and every component the drivers should
+// register is simply absent -- `survey` answered "13 components, 0 Gendustry".
+//
+// The jar it substitutes could not have worked anyway: `build` reobfuscates it in place, so its
+// Minecraft calls are SRG names (func_77978_p) while a dev launch runs on MCP names.
+//
+// Putting sourceSets.main.output back is the whole fix, and it covers both launch paths at once:
+// IntelliJ derives the module's dependencies from this same runtime classpath.
+afterEvaluate {
+    def modClasses = sourceSets.main.output
+    def reobfJar = jar.archivePath
+
+    sourceSets.main.runtimeClasspath += modClasses
+
+    tasks.withType(JavaExec).matching { it.name in ['runClient', 'runServer'] }.each { run ->
+        run.classpath = run.classpath.filter { it != reobfJar } + modClasses
+        // The run tasks inherited a dependency on `jar`, not on the classes: without this a launch
+        // after `clean` finds an empty directory and silently starts without the mod again.
+        run.dependsOn 'classes'
+    }
+}
+
+task cpCheck {
+    group = 'apiarist'
+    description = 'Prints where the run tasks will look for the mod, and whether the classes are there'
+
+    doLast {
+        ['runClient', 'runServer'].each { name ->
+            def own = tasks[name].classpath.files.findAll { it.path.contains(projectDir.name) }
+            println "-- ${name}:"
+            own.each { println "     ${it}" }
+        }
+    }
+}

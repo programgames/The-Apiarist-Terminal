@@ -132,6 +132,16 @@ guessing at the address of a managed filesystem OpenComputers only creates on fi
 
 `.idea/runConfigurations/` carries the same two as shared IntelliJ configurations.
 
+**Check `cpCheck` before believing a dev launch.** ForgeGradle 2.3 predates Gradle 4's
+`build/classes/java/<sourceSet>` layout and drops `sourceSets.main.output` from the run classpath,
+substituting the built jar — which `build` has reobfuscated to SRG names and which a dev launch
+could not have run anyway. A launch then starts with the mod simply absent: FML reports the
+third-party mods only, nothing in the log says why, and every component is missing (`survey`
+answered `13 components, 0 Gendustry` for a whole evening). `build.gradle` puts the output back in
+an `afterEvaluate`, which fixes IntelliJ too since it derives the module classpath from the same
+place — but re-import Gradle in the IDE after touching it. `.\gradlew.bat cpCheck` prints what the
+run tasks will actually load.
+
 **A mod on the classpath never goes in `run/mods` too**, or FML refuses to start on a duplicate mod
 id. That covers OpenComputers, Gendustry, bdlib, Forestry and RedstoneFlux. Watch out for
 `compileOnly`: Gradle keeps those off the run classpath but IntelliJ maps them to Provided scope
