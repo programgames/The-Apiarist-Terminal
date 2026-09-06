@@ -125,10 +125,17 @@ constants. Comments explain the *why* (game quirks), not the *what*.
 `.idea/runConfigurations/` carries the same two as shared IntelliJ configurations.
 
 **A mod on the classpath never goes in `run/mods` too**, or FML refuses to start on a duplicate mod
-id. That covers Gendustry, bdlib, Forestry and RedstoneFlux. Watch out for `compileOnly`: Gradle
-keeps those off the run classpath but IntelliJ maps them to Provided scope and includes them, so a
-`compileOnly` mod jar duplicates only when launched from the IDE. RedstoneFlux is `deobfCompile`
-for that reason.
+id. That covers OpenComputers, Gendustry, bdlib, Forestry and RedstoneFlux. Watch out for
+`compileOnly`: Gradle keeps those off the run classpath but IntelliJ maps them to Provided scope
+and includes them, so a `compileOnly` mod jar duplicates only when launched from the IDE. That is
+why RedstoneFlux and OpenComputers are `deobfCompile`.
+
+**Compile against the OpenComputers mod, never against its API jar.** `maven.cil.li` stops at
+`MC1.12.2-1.7.5.x` and the mod everyone runs is 1.8.7; `TextBuffer.fill(IIIII)V` exists only in the
+latter. When the old API reached the run classpath it shadowed the installed mod's own
+`li.cil.oc.api` classes and the server crashed on `Ticking block entity` the first time a screen was
+drawn. `compileOnly` hid it under Gradle and the crash came straight back from IntelliJ; the
+`deobfCompile` on the real jar removes the version mismatch instead.
 
 ## Traps
 
