@@ -152,11 +152,17 @@ if tanks then
   if tankCount == 0 then info("listTanks", "no tank on this machine") end
 end
 
-if methodNames["canStart"] then
-  local can = try("canStart", "canStart")
-  if can ~= nil then info("canStart", tostring(can)) end
-else
-  info("canStart", "absent (expected on the three fluid machines)")
+-- canStart and isValidInputs answer false plus a reason where Gendustry declares no such check,
+-- so the reason matters as much as the boolean: "not supported by this machine" is a different
+-- answer from "conditions not met".
+local can, canWhy = try("canStart", "canStart")
+if can ~= nil then
+  info("canStart", tostring(can) .. (canWhy and (" -- " .. canWhy) or ""))
+end
+
+local valid, validWhy = try("isValidInputs", "isValidInputs")
+if valid ~= nil then
+  info("isValidInputs", tostring(valid) .. (validWhy and (" -- " .. validWhy) or ""))
 end
 
 -- 3. Events: enable, widen the interval, watch a full cycle ---------------
@@ -179,64 +185,82 @@ while event.pull(0, name .. "_started") do end
 while event.pull(0, name .. "_finished") do end
 while event.pull(0, name .. "_output") do end
 
--- 4. start() + waitForFinish ---------------------------------------------
--- bdlib's server tick calls tryStart() every tick as soon as the machine has enough energy and
--- is not working, so a loaded machine starts on its own and start() normally loses that race and
--- returns false. That is expected, not a failure: what matters is that a cycle is running.
+-- 4. A full cycle, watched through the signals ----------------------------
+-- These machines cannot be driven from a script: bdlib's server tick calls tryStart() as soon as
+-- the machine has inputs and energy, so it is already running by the time anyone types a command,
+-- and canStart() reads false because the inputs have been consumed. Trying to catch it idle is
+-- pointless. Feed it a *stack* of each input instead and watch a started/finished pair go by.
 local started = try("start()", "start")
 local running = try("isWorking", "isWorking")
 
 if started then
-  ok("start()", "this call started the machine")
+  info("start()", "this call started the machine")
 elseif running then
-  info("start()", "false -- the server tick had already auto-started the cycle (expected)")
+  info("start()", "false -- the tick had already auto-started the cycle (expected)")
 else
-  ko("start()", "false and the machine is idle -- inputs missing or not enough energy")
+  info("start()", "false and the machine is idle -- load a stack of inputs to watch a cycle")
 end
 
-if started or running then
-  if try("isWorking after start", "isWorking") then
-    ok("isWorking", "true, a cycle is in progress")
+local seen = { started = 0, finished = 0, output = 0 }
+local handlers = {}
+for _, key in ipairs({ "started", "finished", "output" }) do
+  -- Keep the closure: event.ignore matches on identity, a fresh one would remove nothing.
+  handlers[key] = function() seen[key] = seen[key] + 1 end
+  event.listen(name .. "_" .. key, handlers[key])
+end
+
+local watch = math.min(cycleTimeout, 30)
+info("watching signals", string.format("%ds at interval 40 -- keep the machine fed", watch))
+
+-- Stop once every signal this machine can raise has been seen. _output must be part of the
+-- condition: it is the one signal still throttled by signalInterval, so it trails the finish by
+-- up to that many ticks and leaving early would report it missing.
+local function enough()
+  return seen.started > 0 and seen.finished > 0
+    and (outputCount == 0 or seen.output > 0)
+end
+
+local t0 = computer.uptime()
+local deadline = t0 + watch
+while computer.uptime() < deadline and not enough() do
+  os.sleep(0.2)
+end
+local watched = computer.uptime() - t0
+
+for key, handler in pairs(handlers) do event.ignore(name .. "_" .. key, handler) end
+
+-- The point of the coarse interval: a cycle shorter than 40 ticks must still raise both
+-- transitions. Losing them here is the dropped-transition bug.
+local function report(label, n)
+  if n > 0 then
+    ok(label, n .. " received")
   else
-    ko("isWorking", "false while a cycle was expected")
+    ko(label, string.format("none in %.1fs", watched))
   end
+end
 
-  local t0 = computer.uptime()
-  local done, why = try("waitForFinish", "waitForFinish", cycleTimeout)
-  local elapsed = computer.uptime() - t0
+report("signal _started", seen.started)
+report("signal _finished", seen.finished)
 
-  if done then
-    ok("waitForFinish", string.format("cycle finished in %.1fs", elapsed))
-  elseif done == false then
-    ko("waitForFinish", string.format("%s after %.1fs", tostring(why), elapsed))
-  end
-
-  -- Signals raised during that cycle. Zero here with a 2s interval is the
-  -- dropped-transition case worth reporting.
-  local sawStarted = event.pull(0, name .. "_started") ~= nil
-  local sawFinished = event.pull(1, name .. "_finished") ~= nil
-  local sawOutput = event.pull(1, name .. "_output") ~= nil
-
-  if sawStarted then ok("signal _started") else ko("signal _started", "not raised") end
-  if sawFinished then ok("signal _finished") else ko("signal _finished", "not raised") end
-  if outputCount == 0 then
-    info("signal _output", "not expected: no output slot on this machine")
-  elseif sawOutput then
-    ok("signal _output")
+if outputCount == 0 then
+  if seen.output == 0 then
+    ok("signal _output", "correctly silent: no output slot on this machine")
   else
-    ko("signal _output", "not raised")
+    ko("signal _output", seen.output .. " raised on a machine that has no output slot")
   end
+else
+  report("signal _output", seen.output)
+end
 
-  local outs = try("listOutputs", "listOutputs")
-  if outs then
-    local n = 0
-    for _, it in pairs(outs) do
-      n = n + 1
-      ok("listOutputs", string.format("slot %s: %s x%s",
-        tostring(it.slot), tostring(it.label or it.name), tostring(it.count)))
-    end
-    if n == 0 then info("listOutputs", "no item output (normal on a fluid machine)") end
+local outs = try("listOutputs", "listOutputs")
+if outs then
+  local n = 0
+  for _, it in pairs(outs) do
+    n = n + 1
+    ok("listOutputs", string.format("slot %s: %s x%s",
+      tostring(it.slot), tostring(it.label or it.name), tostring(it.count)))
   end
+  if n == 0 then info("listOutputs", "output slot empty right now") end
 end
 
 -- 5. Restore the configured defaults --------------------------------------

@@ -33,7 +33,6 @@ public final class Config {
     // Shared defaults for the processing machines (everything but the Advanced Mutatron and the
     // Industrial Apiary, which keep their own category because their drivers are hand written).
     public static int processorSignalInterval = 2;          // ticks
-    public static double processorWaitInterval = 0.2;       // seconds
     public static int processorSignalIntervalMax = 40;      // cap safety
 
     // Per-device default for events (applied on environment creation / applyDefaultTuning)
@@ -147,14 +146,6 @@ public final class Config {
             1,
             processorSignalIntervalMax,
             "Time between checks for OC signals (in ticks). Lower = more responsive, higher = less overhead."
-        );
-        processorWaitInterval = cfg.getFloat(
-            "waitStepSeconds",
-            CAT_PROCESSORS,
-            (float) processorWaitInterval,
-            0.05f,
-            5.0f,
-            "Time between checks for blocking wait steps (in seconds)."
         );
         processorDefaultEventsEnabled = cfg.getBoolean(
             "defaultEventsEnabled",

@@ -56,17 +56,13 @@ Available on all eight:
   most of the time, and do not treat it as an error**: bdlib's server tick calls the machine's own
   `tryStart()` every tick as soon as it has enough energy and is not working, so a loaded machine
   starts on its own and `start()` loses that race. It is useful mainly for a machine the tick will
-  not start by itself. To drive a cycle, check `isWorking()` and use `waitForFinish()` rather than
-  relying on `start()` returning true.
+  not start by itself. To drive a cycle, check `isWorking()` and wait on the `_finished` signal
+  rather than relying on `start()` returning true.
 - `getEnergy(): table` — `{ stored, capacity }`.
 - `listSlots(): table` — the machine's named slots, plus `outputs:number[]` and `size:number`.
 - `listTanks(): table` — array of `{ name, amount, capacity, fluid? }`; empty for machines with no tank.
 - `listOutputs(): table` — array of `{ name, label?, nbt?, count, slot }` for non-empty output slots.
-- `waitForFinish([timeout:number=60]): boolean, string?` — waits without freezing the computer until
-  the machine stops working; returns `false, "timeout"` if it is still busy when the timeout elapses. It returns `true` immediately when the machine is not
-  working, so only call it after a `start()` that returned `true`: `tryStart()` marks the machine as
-  working synchronously, so there is no race in that case.
-- `setSignalInterval(ticks)`, `setWaitInterval(seconds)`, `applyDefaultTuning()`.
+- `setSignalInterval(ticks)`, `applyDefaultTuning()`.
 - `setEventsEnabled(bool)`, `getEventsEnabled()`, `areEventsEnabled()`.
 
 Two more are present on every component, and answer `false, "not supported by this machine"` where
@@ -125,9 +121,10 @@ print("put the bee in slot", slots.inIndividual)
 print("read the result from slot", slots.outSample)
 
 if sampler.canStart() then
-  sampler.start()
-  local ok, err = sampler.waitForFinish(30)
-  if not ok then error(err) end
+  sampler.start()                                   -- may return false: the tick often wins
+  if sampler.isWorking() then
+    if not event.pull(30, "genetic_sampler_finished") then error("timeout") end
+  end
 
   for _, item in ipairs(sampler.listOutputs()) do
     print("produced", item.label or item.name, "x" .. item.count)
@@ -150,7 +147,7 @@ if not ok then
 end
 
 transposer.start()
-transposer.waitForFinish(30)
+if transposer.isWorking() then event.pull(30, "genetic_transposer_finished") end
 ```
 
 ## Example: watch a fluid machine
@@ -160,7 +157,7 @@ local component = require("component")
 local extractor = component.dna_extractor
 
 extractor.start()
-extractor.waitForFinish(60)
+if extractor.isWorking() then event.pull(60, "dna_extractor_finished") end
 
 for _, tank in ipairs(extractor.listTanks()) do
   print(tank.name, tank.fluid, tank.amount .. "/" .. tank.capacity)
@@ -178,6 +175,26 @@ while true do
   print("mutation done, collecting")
 end
 ```
+
+## Waiting for a cycle
+
+There is no `waitForFinish` callback, and there cannot be one. OpenComputers' `Context.pause()` does
+not suspend a callback: it schedules a pause for *after* the call returns. A Java loop around it
+therefore busy-waits and holds the server thread for the whole timeout. Wait in Lua instead, on the
+signal:
+
+```lua
+local event = require("event")
+local sampler = require("component").genetic_sampler
+
+if sampler.isWorking() then
+  event.pull(30, "genetic_sampler_finished")
+end
+```
+
+`_started` and `_finished` are raised from the machine's own tick and are never throttled, so a
+short cycle cannot slip between two samples. `setSignalInterval(ticks)` only governs how often the
+output slots are scanned for `_output`.
 
 ## Why one class
 

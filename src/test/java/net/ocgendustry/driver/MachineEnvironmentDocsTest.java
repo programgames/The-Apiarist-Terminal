@@ -73,12 +73,17 @@ public class MachineEnvironmentDocsTest {
     }
 
     @Test
-    public void waitingCallbackMentionsItsTimeout() throws Exception {
-        String doc = MachineEnvironment.class
-            .getDeclaredMethod("waitForFinish",
-                li.cil.oc.api.machine.Context.class, li.cil.oc.api.machine.Arguments.class)
-            .getAnnotation(Callback.class).doc();
+    public void noCallbackBlocksWaitingForTheMachine() {
+        // A callback cannot wait for a cycle: Context.pause() does not suspend the call, it only
+        // schedules a pause for after it returns, so a loop around it busy-waits and holds the
+        // server thread. Waiting belongs in Lua, on the _finished signal. waitForFinish used to
+        // live here and froze the server for the whole of its timeout.
+        for (Method m : MachineEnvironment.class.getDeclaredMethods()) {
+            if (m.getAnnotation(Callback.class) == null) continue;
 
-        assertThat(doc).contains("timeout");
+            assertThat(m.getName())
+                .as("callbacks must return promptly; wait on the _finished signal from Lua instead")
+                .isNotEqualTo("waitForFinish");
+        }
     }
 }

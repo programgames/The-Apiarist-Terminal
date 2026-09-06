@@ -84,13 +84,17 @@ Read slot indices from the tile's own `slots()` accessors rather than hardcoding
 (ordering is user-visible). `DriverAdvMutatronDocExamplesTest` asserts on doc strings — keep them
 in sync when renaming or rewording.
 
-**Blocking helpers.** Cooperative waits only: loop on `ctx.pause(waitStepSeconds)` against a
-`System.currentTimeMillis()` deadline. Never `Thread.sleep`, never spin the server thread.
+**Blocking helpers.** Don't write any. `Context.pause()` does **not** suspend a callback: it just
+schedules a pause for after the call returns, so looping on it busy-waits and holds the server
+thread for the whole timeout. Waiting belongs in Lua, on the `_finished` signal. `DriverApiary` and
+`DriverAdvMutatron` still carry that broken pattern (`waitForFinish`, `waitForPrincess`) and need
+the same treatment.
 
 **Events.** Emission is gated by `Config.enableEvents` (global) **AND** the per-device
 `eventsEnabled` flag; `canUpdate()` returns that conjunction so ticking is skipped entirely when
 off. `update()` is throttled by `signalInterval` ticks. Every component exposes
-`setEventsEnabled/getEventsEnabled/areEventsEnabled` and `setSignalInterval/setWaitInterval/applyDefaultTuning`.
+`setEventsEnabled/getEventsEnabled/areEventsEnabled` and `setSignalInterval/applyDefaultTuning`
+(the two hand written drivers also still expose `setWaitInterval`).
 Signals: `advmutatron_started|finished|output`, `apiary_started|finished|output`.
 
 **Tunables.** Clamp through `Tuning.clampSignalInterval/clampWaitStep`; defaults come from

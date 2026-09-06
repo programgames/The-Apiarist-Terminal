@@ -11,7 +11,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   `genetic_imprinter`, `genetic_replicator`, `genetic_transposer`, `dna_extractor`,
   `protein_liquifier` and `mutagen_producer`.
   - Shared callbacks: `getProgress`, `isWorking`, `start`, `getEnergy`, `listSlots`, `listTanks`,
-    `listOutputs`, `waitForFinish`, plus the usual event and tuning controls.
+    `listOutputs`, plus the usual event and tuning controls. There is deliberately no
+    `waitForFinish`: wait on the `<component>_finished` signal from Lua.
   - `canStart` and `isValidInputs` on every one of them; they answer
     `false, "not supported by this machine"` where Gendustry declares no such check (the three
     machines that only fill a tank, and every machine but the Genetic Transposer respectively).
@@ -21,6 +22,12 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Documentation: `docs/components/processing_machines.md`.
 
 ### Fixed
+- `_started` and `_finished` were sampled only every `signalIntervalTicks`, so a cycle shorter than
+  that interval raised neither signal. A Genetic Sampler at the default interval lost every
+  transition. The working flag is now read on every tick and only the output scan stays throttled.
+- `waitForFinish` was removed: `Context.pause()` does not suspend a callback, it schedules a pause
+  for after it returns, so the loop busy-waited and held the server thread for the whole timeout
+  while reporting a bogus early timeout to the script.
 - The eight processing-machine components exposed their callbacks but every call failed with
   `no such method`. OpenComputers routes a call to the environment whose class *equals* the
   callback's declaring class as soon as several drivers share a block, which is always the case

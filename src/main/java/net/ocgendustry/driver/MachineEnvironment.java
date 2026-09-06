@@ -53,7 +53,6 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
     private int tickCounter = 0;
 
     private int signalInterval;
-    private double waitStepSeconds;
 
     // Per-device toggle, in addition to the global Config.enableEvents
     private boolean eventsEnabled;
@@ -90,15 +89,22 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
     public void update() {
         if (!Config.enableEvents || !eventsEnabled) return;
 
-        tickCounter++;
-        if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
-
         String component = spec.componentName();
 
+        // Sampled every tick, on purpose. Reading the working flag is a field access, and a cycle
+        // shorter than signalInterval would otherwise start and finish between two samples and
+        // raise neither signal -- which is exactly what a Genetic Sampler does at the default
+        // interval.
         boolean working = tile.isWorking();
-        if (working && !lastWorking) sendSignal(component + "_started");
-        if (!working && lastWorking) sendSignal(component + "_finished");
-        lastWorking = working;
+        if (working != lastWorking) {
+            sendSignal(component + (working ? "_started" : "_finished"));
+            lastWorking = working;
+        }
+
+        // The output signature walks the output slots, so that one is throttled: signalInterval
+        // only governs how often outputs are scanned.
+        tickCounter++;
+        if (signalInterval > 1 && (tickCounter % signalInterval) != 0) return;
 
         // Machines that only produce fluid have no output slot, so they never raise this signal:
         // tank levels change on nearly every tick and would turn the event into noise.
@@ -127,7 +133,6 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
 
     private void applyDefaults() {
         signalInterval = Tuning.clampSignalInterval(Config.processorSignalInterval, Config.processorSignalIntervalMax);
-        waitStepSeconds = Tuning.clampWaitStep(Config.processorWaitInterval);
         eventsEnabled = Config.processorDefaultEventsEnabled;
     }
 
@@ -229,20 +234,6 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
         return new Object[]{ arr.toArray() };
     }
 
-    @Callback(doc = "function([timeout:number=60]):boolean,string? -- Wait without freezing until the machine stops working, then return true; returns false,\"timeout\" if it is still working when the timeout elapses. Returns true immediately if the machine is not working, so check isWorking() first.")
-    public Object[] waitForFinish(Context ctx, Arguments args) {
-        double timeoutSec = args.count() > 0 ? Math.max(0, args.checkDouble(0)) : 60.0;
-        long deadline = System.currentTimeMillis() + (long) (timeoutSec * 1000L);
-
-        while (tile.isWorking()) {
-            if (System.currentTimeMillis() > deadline) return new Object[]{ false, "timeout" };
-
-            ctx.pause(waitStepSeconds);
-        }
-
-        return new Object[]{ true };
-    }
-
     // ---- Event controls ----
 
     @Callback(doc = "function(enable:boolean):boolean -- Enable or disable events for this device instance only (global config may still disable events). Returns true on success.")
@@ -264,16 +255,9 @@ public final class MachineEnvironment<T extends TileBaseProcessor & TileWorker>
 
     // ---- Tuning ----
 
-    @Callback(doc = "function(ticks:number):boolean -- Set how often signals are emitted (every N ticks, min 1). Lower = more responsive, higher = less overhead.")
+    @Callback(doc = "function(ticks:number):boolean -- Set how often output slots are scanned for the _output signal (every N ticks, min 1). The _started and _finished signals are not throttled by this. Lower = more responsive, higher = less overhead.")
     public Object[] setSignalInterval(Context ctx, Arguments args) {
         signalInterval = Tuning.clampSignalInterval(args.checkInteger(0), Config.processorSignalIntervalMax);
-
-        return new Object[]{ true };
-    }
-
-    @Callback(doc = "function(seconds:number):boolean -- Set the cooperative wait step used by blocking operations (default 0.2s, range 0.05..5). Lower = more responsive, higher = less overhead.")
-    public Object[] setWaitInterval(Context ctx, Arguments args) {
-        waitStepSeconds = Tuning.clampWaitStep(args.checkDouble(0));
 
         return new Object[]{ true };
     }
