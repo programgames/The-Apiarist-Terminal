@@ -164,8 +164,8 @@ if ((project.findProperty('curseforgeProjectId') ?: System.getenv('CURSEFORGE_PR
 }
 
 // --- Local test environment --------------------------------------------------------------------
-// The mods a dev client needs to exercise this one: Gendustry itself, plus the bee mods it builds
-// on and a creative power source. They are downloaded from CurseMaven and copied into the run
+// The mods a dev client needs to exercise this one: the bee mods Gendustry builds on, a creative
+// power source, and JEI to find any of it in a creative inventory nobody can navigate by hand. They are downloaded from CurseMaven and copied into the run
 // directories, never committed -- redistributing someone else's jar is not ours to do.
 //
 // Gendustry, bdlib and Forestry are absent on purpose: the build already puts them on the
@@ -177,6 +177,7 @@ configurations {
 }
 
 dependencies {
+    devMods "curse.maven:jei-238222:8752694"                    // Just Enough Items
     devMods "curse.maven:opencomputers-223008:6057571"          // OpenComputers 1.8.7
     devMods "curse.maven:binnies-mods-223525:2916129"           // Binnie's: Extra Bees, Genetics
     devMods "curse.maven:codechicken-lib-1-8-242818:2779848"    // required by Thermal Expansion
