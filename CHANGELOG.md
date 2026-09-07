@@ -16,6 +16,9 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   processing machines already did. A script driving any machine through the generic inventory
   calls iterates over that field, and it came back `nil` from the two components most worth
   driving.
+- `ocgendustry/scripts/nofreeze.lua`, which times `selectAndProduce` and says plainly whether the
+  call held the server thread. It is the acceptance test for the change this fork exists for, so it
+  belongs in the repository rather than in a shell history.
 - `ocgendustry/scripts/apiarist.lua`, a library that restores the one-call ergonomics the blocking
   callbacks used to offer -- `machine:runCycle(timeout)`, `adv:produce(n, timeout)`,
   `apiary:waitForPrincess(timeout)` -- with the waiting done in Lua, where it is allowed.
