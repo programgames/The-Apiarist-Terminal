@@ -2,7 +2,9 @@
 .gradle/
 build/
 out/
-bin/
+# Anchored: an unanchored bin/ matches every directory of that name at any depth, and the floppy's
+# own usr/bin/ is one. Files already tracked survived it; new ones were silently never committed.
+/bin/
 
 # Gradle Wrapper - keep the wrapper jar
 !gradle/wrapper/gradle-wrapper.jar
