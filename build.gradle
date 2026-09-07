@@ -239,10 +239,12 @@ task setupDevDisk {
         // package.path and /usr/bin on the shell's PATH, so the split decides how each is reached.
         def library = 'apiarist.lua'
 
-        // run/ is a client save, whose name the player chose; run-server/ always uses world/.
+        // A client save is named by the player and lives under run/saves; a dedicated server always
+        // uses world/. run/world exists too whenever a server has been started without
+        // -PmcRunDir, so it is covered rather than assumed away.
         def worlds = []
         file('run/saves').listFiles()?.each { if (it.directory) worlds << it }
-        worlds << file('run-server/world')
+        [file('run/world'), file('run-server/world')].each { if (it.directory) worlds << it }
 
         worlds.each { world ->
             def disk = new File(world, 'opencomputers/loot/apiarist')
