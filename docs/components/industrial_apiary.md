@@ -172,32 +172,57 @@ NBT, which is a different job from driving a machine. Use the Genetic Sampler fo
 So `getSpeciesTemplate` is for **deciding what to breed towards**: it tells you what a target
 species is worth before you spend labware getting there.
 
-### Comparing two species
+### Comparing what you have with what you want
 
-The practical use -- what a cross towards another species would change:
+The practical use. Say you keep Prussian bees, from Extra Bees, and you want Forest's High
+fertility. What would a cross actually change, and which part of it will be slow?
 
 ```lua
 local apiary = require("component").industrial_apiary
 
-local function compare(a, b)
-  local ga, gb = apiary.getSpeciesTemplate(a), apiary.getSpeciesTemplate(b)
-  if not ga then return print(a .. ": unknown") end
-  if not gb then return print(b .. ": unknown") end
+local function compare(have, want)
+  local a = apiary.getSpeciesTemplate(have)
+  local b = apiary.getSpeciesTemplate(want)
+  if not a then return print(have .. ": unknown species") end
+  if not b then return print(want .. ": unknown species") end
 
-  for chromosome, allele in pairs(ga) do
-    local other = gb[chromosome]
-    if other and other.uid ~= allele.uid then
-      print(string.format("%-22s %s -> %s%s", chromosome, allele.name, other.name,
-        other.dominant and "" or "  (recessive: needs both parents)"))
+  -- pairs() gives no order, and an unordered list of thirteen chromosomes is hard to read.
+  local changed = {}
+  for chromosome, allele in pairs(a) do
+    local target = b[chromosome]
+    if target and target.uid ~= allele.uid then
+      changed[#changed + 1] = { chromosome, allele.name, target.name, target.dominant }
     end
+  end
+  table.sort(changed, function(x, y) return x[1] < y[1] end)
+
+  print(string.format("%d of 13 chromosomes differ", #changed))
+  for _, c in ipairs(changed) do
+    print(string.format("  %-22s %-10s -> %-10s %s", c[1], c[2], c[3],
+      c[4] and "dominant" or "RECESSIVE, needs both parents"))
   end
 end
 
-compare("forestry.speciesForest", "forestry.speciesCommon")
+compare("extrabees.species.blue", "forestry.speciesForest")
 ```
 
-Only the chromosomes that differ are printed, and the recessive ones are flagged: those are the
-ones a single cross will not give you.
+which prints:
+
+```
+3 of 13 chromosomes differ
+  fertility              Normal     -> High       RECESSIVE, needs both parents
+  flowering              Slowest    -> Slower     RECESSIVE, needs both parents
+  species                Prussian   -> Forest     dominant
+```
+
+Read it as a shopping list. Ten of the thirteen chromosomes already match, so the cross is smaller
+than it looks, and the `species` row is dominant: one good parent carries it over.
+
+The `fertility` row answers the question you actually asked. High fertility is **recessive** on
+Forest, so a Prussian crossed once with a Forest will carry it and still lay like a Prussian. It
+shows only once both parents have it, which is several generations. Knowing that before you spend
+the labware, rather than after, is the whole reason to read the templates.
+
 
 ### Listing and reading, plainly
 
