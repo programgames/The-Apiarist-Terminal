@@ -118,7 +118,8 @@ constants. Comments explain the *why* (game quirks), not the *what*.
 
 ```powershell
 .\gradlew.bat setupDevMods   # once: third-party mods into run/mods and run-server/mods
-.\gradlew.bat setupDevDisk   # the reference Lua programs, as a floppy in both dev worlds
+.\gradlew.bat setupDevDisk   # the reference Lua programs, as a floppy in every dev world
+.\gradlew.bat installDevScripts  # or straight onto a computer that already runs OpenOS
 .\gradlew.bat runClient      # client, world in run/
 .\gradlew.bat runServer      # dedicated server, world in run-server/, needs a real terminal
 ```
@@ -129,6 +130,15 @@ floppy appears in the creative inventory. The layout is `usr/lib/apiarist.lua` a
 so OpenOS's `install` drops them where `package.path` and the shell already look. It is the only
 delivery route that assumes nothing about the computer: no hard drive, no internet card, and no
 guessing at the address of a managed filesystem OpenComputers only creates on first write.
+
+Once a computer does have OpenOS on a hard drive, `installDevScripts` is the shorter way round: a
+managed filesystem is just a directory on the host named by the component address, so the files go
+in with no world reload and no trip through the creative inventory. It recognises an install by its
+`/init.lua` and leaves floppies, RAIDs and tmpfs alone. Reboot the in-game computer afterwards.
+
+`pastebin put` is dead for reading files back off a computer — the API key baked into OpenOS 1.8.7
+is revoked upstream and pastebin.com answers 422. Save the world and read the file on the host;
+OpenComputers only flushes its filesystems on save, so nothing is there before that.
 
 `.idea/runConfigurations/` carries the same two as shared IntelliJ configurations. They invoke the
 **Gradle tasks**, not a Java Application: an Application configuration builds its classpath from

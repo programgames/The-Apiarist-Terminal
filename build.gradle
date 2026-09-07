@@ -266,6 +266,52 @@ task setupDevDisk {
     }
 }
 
+// The same programs, copied straight onto a computer that already runs OpenOS.
+//
+// setupDevDisk is the route that assumes nothing about the hardware, but it costs a world reload
+// (OpenComputers reads loot/ on WorldEvent.Load) and a trip through the creative inventory. Once a
+// hard drive exists and OpenOS is on it, its managed filesystem is just a directory on the host,
+// named by the component address -- so the files can be dropped in with no reload and no floppy.
+//
+// An OpenOS install is recognised by its /init.lua; anything else under opencomputers/ is a floppy,
+// a RAID or a computer's tmpfs, and is left alone. Reboot the in-game computer afterwards so the
+// shell picks up the new commands.
+//
+//   .\gradlew.bat installDevScripts
+task installDevScripts {
+    group = 'apiarist'
+    description = 'Copies the reference Lua programs onto every dev computer that already runs OpenOS'
+
+    doLast {
+        def scripts = file('src/main/resources/ocgendustry/scripts')
+        def library = 'apiarist.lua'
+        def installed = 0
+
+        [file('run'), file('run-server')].each { root ->
+            if (!root.directory) return
+
+            root.eachFileRecurse { candidate ->
+                if (candidate.name != 'init.lua' || !candidate.parentFile.path.contains('opencomputers')) return
+
+                def disk = candidate.parentFile
+                copy {
+                    from(scripts) { include library; into 'usr/lib' }
+                    from(scripts) { exclude library; into 'usr/bin' }
+                    into disk
+                }
+                installed++
+                logger.lifecycle("programs -> ${disk}")
+            }
+        }
+
+        if (installed == 0) {
+            logger.lifecycle('no computer with OpenOS on a hard drive found -- use setupDevDisk and the floppy instead')
+        } else {
+            logger.lifecycle("${installed} computer(s) updated -- reboot them in game to pick the commands up")
+        }
+    }
+}
+
 task setupDevMods {
     group = 'apiarist'
     description = 'Downloads the third-party mods a dev client and server need, into run/ and run-server/'
