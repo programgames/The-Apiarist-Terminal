@@ -23,6 +23,11 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   processing machines already did. A script driving any machine through the generic inventory
   calls iterates over that field, and it came back `nil` from the two components most worth
   driving.
+- `ocgendustry/scripts/checkall.lua`, the acceptance pass for what the other scripts leave
+  untouched: `apiarist.lua` itself, which nothing had ever executed, and the apiary's own read
+  callbacks and signals. It is careful about which callbacks are this mod's -- ten of the thirty
+  that `component.methods()` lists on that block belong to Forestry's OpenComputers driver and to
+  OpenComputers' own energy driver.
 - `ocgendustry/scripts/nofreeze.lua`, which times `selectAndProduce` and says plainly whether the
   call held the server thread. It is the acceptance test for the change this fork exists for, so it
   belongs in the repository rather than in a shell history.
