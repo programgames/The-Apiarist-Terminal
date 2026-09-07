@@ -235,6 +235,58 @@ task setupDevDisk {
 
     doLast {
         def scripts = file('src/main/resources/ocgendustry/scripts')
+        // The library is required by name; everything else is run by name. OpenOS puts /usr/lib on
+        // package.path and /usr/bin on the shell's PATH, so the split decides how each is reached.
+        def library = 'apiarist.lua'
+
+        // A client save is named by the player and lives under run/saves; a dedicated server always
+        // uses world/. run/world exists too whenever a server has been started without
+        // -PmcRunDir, so it is covered rather than assumed away.
+        def worlds = []
+        file('run/saves').listFiles()?.each { if (it.directory) worlds << it }
+        [file('run/world'), file('run-server/world')].each { if (it.directory) worlds << it }
+
+        worlds.each { world ->
+            def disk = new File(world, 'opencomputers/loot/apiarist')
+            delete disk
+            copy {
+                from(scripts) { include library; into 'usr/lib' }
+                from(scripts) { exclude library; into 'usr/bin' }
+                into disk
+            }
+            new File(disk, '.prop').text = '{label="Apiarist Terminal"}\n'
+
+            def descriptor = new File(world, 'opencomputers/loot/loot.properties')
+            descriptor.parentFile.mkdirs()
+            descriptor.text = "# Written by ./gradlew setupDevDisk -- do not edit by hand.\n" +
+                "apiarist=Apiarist Terminal (Gendustry):1:dyeYellow\n"
+
+            logger.lifecycle("Apiarist disk -> ${disk}")
+        }
+    }
+}
+
+// The same programs, copied straight onto a computer that already runs OpenOS.
+//
+// setupDevDisk is the route that assumes nothing about the hardware, but it costs a world reload
+// (OpenComputers reads loot/ on WorldEvent.Load) and a trip through the creative inventory. Once a
+// hard drive exists and OpenOS is on it, its managed filesystem is just a directory on the host,
+// named by the component address -- so the files can be dropped in with no floppy.
+//
+// Whether that is safe live is decided by bufferChanges, which setupDevMods turns off: with it on,
+// OpenComputers holds a running disk in memory and writes it out on save, so a copy made
+// underneath is invisible (`survey: file not found`) and then overwritten.
+//
+// An OpenOS install is recognised by its /init.lua; anything else under opencomputers/ is a floppy,
+// a RAID or a computer's tmpfs, and is left alone.
+//
+//   .\gradlew.bat installDevScripts
+task installDevScripts {
+    group = 'apiarist'
+    description = 'Copies the reference Lua programs onto every dev computer that already runs OpenOS'
+
+    doLast {
+        def scripts = file('src/main/resources/ocgendustry/scripts')
         def library = 'apiarist.lua'
         def installed = 0
         def buffered = []

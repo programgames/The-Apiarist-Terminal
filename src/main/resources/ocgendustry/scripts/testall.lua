@@ -1,14 +1,20 @@
 --[[
-  testall.lua -- walks every Gendustry processing component present on the network and checks it.
+  testall.lua -- walks every Gendustry component present on the network and checks it.
 
   Usage: testall [component] [watchSeconds]
-     testall                    -- every machine it can find, pausing between them
+     testall                    -- everything it can find, pausing between each
      testall genetic_transposer -- just that one
+     testall industrial_apiary  -- the apiary's own checks, including the redstone mode
      testall dna_extractor 20   -- shorter signal watch
 
   Feed each machine a STACK of every input before running: these machines auto-start on their own
   tick, so a script can never catch one idle, and a single input is consumed before you can type.
   A machine that is neither working nor able to start is reported and skipped, not failed.
+
+  The industrial_apiary is walked separately from the eight processing machines: it has no cycle to
+  start and its own state to check. setRedstoneMode is the one callback in this mod that changes a
+  machine rather than reading it, so it is exercised here -- every mode set and read back, and the
+  mode the apiary started on restored afterwards.
 ]]
 
 local component = require("component")
@@ -219,12 +225,104 @@ local function testMachine(name)
   return "tested"
 end
 
+-- The Industrial Apiary, which has no cycle to start and answers a different set of questions.
+local function testApiary()
+  local addr = findLive("industrial_apiary")
+  if not addr then
+    totals.absent = totals.absent + 1
+    print("== industrial_apiary -- not on the network")
+
+    return "absent"
+  end
+
+  print(string.format("== industrial_apiary  %s", addr:sub(1, 8)))
+
+  local working = call(addr, "isWorking")
+  local energy, capacity = call(addr, "getEnergy")
+  if energy then
+    ok("state", string.format("working %s, energy %s/%s",
+      tostring(working), tostring(energy), tostring(capacity)))
+  else
+    ko("state", "getEnergy failed")
+  end
+
+  local slots = call(addr, "listSlots")
+  if type(slots) == "table" and slots.size then
+    ok("listSlots", string.format("size=%s, queen=%s drone=%s",
+      tostring(slots.size), tostring(slots.queen), tostring(slots.drone)))
+  else
+    ko("listSlots", "no size field -- the hand-written drivers must report it like the rest")
+  end
+
+  -- The write path. getRedstoneMode answers a table, { mode, canWork }, not a bare string.
+  local function currentMode()
+    local rs = call(addr, "getRedstoneMode")
+    if type(rs) ~= "table" then return nil end
+
+    return rs.mode, rs.canWork
+  end
+
+  -- Every mode is set and read back, then the one the apiary started on is put back: a test that
+  -- leaves an apiary switched off is worse than no test.
+  local original, canWork = currentMode()
+  if not original then
+    ko("getRedstoneMode", "no table with a mode field")
+
+    return "tested"
+  end
+  ok("getRedstoneMode", string.format("%s, canWork=%s", tostring(original), tostring(canWork)))
+
+  local roundTripped = 0
+  for _, mode in ipairs({ "ALWAYS", "NEVER", "RS_ON", "RS_OFF" }) do
+    local set, setWhy = call(addr, "setRedstoneMode", mode)
+    local readBack = currentMode()
+
+    if set and readBack == mode then
+      roundTripped = roundTripped + 1
+    else
+      ko("setRedstoneMode(" .. mode .. ")", tostring(setWhy or readBack))
+    end
+  end
+  if roundTripped == 4 then ok("setRedstoneMode", "all four modes set and read back") end
+
+  local restored = call(addr, "setRedstoneMode", original)
+  if restored and currentMode() == original then
+    ok("restore", "back to " .. tostring(original))
+  else
+    ko("restore", "the apiary was left on a mode it did not start on")
+  end
+
+  -- A bad mode has to be refused with a reason rather than throwing or silently doing nothing.
+  local bad, badWhy = call(addr, "setRedstoneMode", "NotAMode")
+  if bad == false and badWhy then
+    ok("setRedstoneMode(bad)", tostring(badWhy))
+  else
+    ko("setRedstoneMode(bad)", "an unknown mode should answer false plus a reason")
+  end
+
+  local status = call(addr, "getPrincessStatus")
+  if type(status) == "table" then
+    ok("getPrincessStatus", string.format("freed=%s automated=%s%s",
+      tostring(status.freed), tostring(status.automated),
+      status.error and (" error=" .. tostring(status.error)) or ""))
+  else
+    info("getPrincessStatus", "no answer")
+  end
+
+  local errs = call(addr, "getErrors")
+  if type(errs) == "table" then
+    info("getErrors", #errs == 0 and "none" or table.concat(errs, ", "))
+  end
+
+  return "tested"
+end
+
 -- Main -------------------------------------------------------------------
 local list = only and { only } or MACHINES
 local present = 0
 
 for _, name in ipairs(list) do
-  local verdict = testMachine(name)
+  local verdict = name == "industrial_apiary" and testApiary() or testMachine(name)
   report[#report + 1] = string.format("%-20s %s", name, verdict)
 
   if verdict ~= "absent" then
@@ -235,6 +333,12 @@ for _, name in ipairs(list) do
       if (io.read() or ""):sub(1, 1) == "q" then break end
     end
   end
+end
+
+if not only then
+  local verdict = testApiary()
+  report[#report + 1] = string.format("%-20s %s", "industrial_apiary", verdict)
+  if verdict ~= "absent" then present = present + 1 end
 end
 
 print(string.rep("-", 46))
