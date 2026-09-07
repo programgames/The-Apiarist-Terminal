@@ -33,6 +33,13 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   processing machines already did. A script driving any machine through the generic inventory
   calls iterates over that field, and it came back `nil` from the two components most worth
   driving.
+- `breed <target>`, on the floppy: one cross on an Advanced Mutatron, run from a chest. It feeds
+  the parents and the labware, picks the mutation by name, waits on the signal and takes the bee
+  back out, with the sides given as options rather than edited into the file.
+- The two `advmutatron_*` rigs leave the floppy for `assets/ocgendustry/harness/`, where the
+  `/ocgendustry test` command that writes them out lives. They are acceptance tests -- a fixed plan
+  of three Forestry crosses, reported as PASS, SKIP and FAIL, with the chest and machine sides
+  written into the file -- and shipping them to players as programs said otherwise.
 - `genome`, on the floppy: the bee in the apiary read chromosome by chromosome, and `genome vs
   <species>` putting it against a target so a breeding decision is one command rather than two
   callbacks and a comparison written by hand. It goes through `component.invoke` rather than the

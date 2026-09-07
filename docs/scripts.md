@@ -9,6 +9,11 @@ programs, and four worked programs you can run as they are. That is what this pa
 `testall`, `machine_test`, `checkall` and `nofreeze`. They exist to check that this mod behaves, not
 to be used with it — see `DEVELOPMENT.md`.
 
+**Two more are in the jar but not on the floppy**, under `assets/ocgendustry/harness/`:
+`advmutatron_fresh` and `advmutatron_reuse`. They belong to the `/ocgendustry test` harness, which
+writes them out — a fixed plan of three Forestry crosses reported as PASS, SKIP and FAIL. That is a
+test, not something to hand a player, and it sat on the floppy until it was read closely.
+
 ## The library
 
 `apiarist.lua`, which `install` puts in `/usr/lib`, is the one meant for your own programs.
@@ -62,8 +67,7 @@ would rather read one than run it.
 | `species get <uid>` | One species' default genome: its thirteen chromosomes, each with its dominance. |
 | `genome [queen\|drone]` | What the bee in that slot actually carries: both alleles per chromosome, with the mixed ones marked. A mixed chromosome is still carrying something from an older parent and is the only kind a further cross can change. |
 | `genome vs <species>` | The queen against a target species: how many chromosomes are already fixed as wanted, and what is left — flagging the recessive ones, which need both parents. |
-| `advmutatron_fresh` | A full automation rig: an OpenComputers Transposer feeding an Advanced Mutatron from a chest, breeding a fresh line and moving the product to an apiary. |
-| `advmutatron_reuse` | The same rig, reusing the mutatron's own product as the next parent. |
+| `breed <target>` | One cross on an Advanced Mutatron, run from a chest: it feeds the parents and the labware, picks the mutation you named, waits for the cycle and takes the bee back out. Sides are options — `--chest=`, `--mutatron=`, `--apiary=`, `--timeout=`. |
 
 ## Getting them onto a computer
 

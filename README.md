@@ -41,7 +41,8 @@ Full callback reference can be found in per-component docs, along with quick sta
 ## Lua library and programs
 The mod registers an OpenComputers floppy, **Apiarist Terminal** — yellow, in the creative
 inventory beside the OpenOS disk. Put it in a drive and run `install`: you get `apiarist.lua` in
-`/usr/lib` and four programs in `/usr/bin` (`survey`, `species`, and two worked automation rigs).
+`/usr/lib` and four programs in `/usr/bin`: `survey`, `species`, `genome`, and `breed`, which runs
+one cross on an Advanced Mutatron from a chest.
 `docs/scripts.md` covers what each does.
 
 `apiarist.lua` is the one meant for your own programs. A callback cannot wait for a machine without
