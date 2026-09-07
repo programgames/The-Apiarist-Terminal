@@ -15,7 +15,25 @@
   start and its own state to check. setRedstoneMode is the one callback in this mod that changes a
   machine rather than reading it, so it is exercised here -- every mode set and read back, and the
   mode the apiary started on restored afterwards.
+
+  Everything printed is also written to /home/testall.txt. A full run is several screens long and
+  the earliest machines scroll away before the summary appears, which is the half worth keeping.
 ]]
+
+-- Everything printed goes to the file as well, so the whole run survives the screen. Opened here
+-- rather than buffered to the end: a run that dies halfway still leaves what it managed to check.
+local REPORT_PATH = "/home/testall.txt"
+local reportFile = io.open(REPORT_PATH, "w")
+local screenPrint = print
+
+print = function(...)
+  screenPrint(...)
+  if reportFile then
+    local parts = table.pack(...)
+    for i = 1, parts.n do parts[i] = tostring(parts[i]) end
+    reportFile:write(table.concat(parts, "\t", 1, parts.n) .. "\n")
+  end
+end
 
 local component = require("component")
 local event = require("event")
@@ -347,3 +365,8 @@ print(string.rep("-", 46))
 for _, line in ipairs(report) do print(line) end
 print(string.format("%d machine(s) found, %d passed, %d failed, %d skipped",
   present, totals.pass, totals.fail, totals.skipped))
+
+if reportFile then
+  reportFile:close()
+  screenPrint("written to " .. REPORT_PATH .. " -- save the world to read it on the host")
+end

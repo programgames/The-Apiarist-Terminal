@@ -23,6 +23,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   processing machines already did. A script driving any machine through the generic inventory
   calls iterates over that field, and it came back `nil` from the two components most worth
   driving.
+- `testall` writes everything it prints to `/home/testall.txt` as well. A full run is several
+  screens long and the first machines scroll away before the summary appears.
 - `ocgendustry/scripts/checkall.lua`, the acceptance pass for what the other scripts leave
   untouched: `apiarist.lua` itself, which nothing had ever executed, and the apiary's own read
   callbacks and signals. It is careful about which callbacks are this mod's -- ten of the thirty
