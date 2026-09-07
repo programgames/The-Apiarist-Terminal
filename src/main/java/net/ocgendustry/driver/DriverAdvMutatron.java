@@ -200,6 +200,15 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             if (lab == null || lab.isEmpty()) return "missing labware";
             if (out != null && !out.isEmpty()) return "output full";
 
+            // The mutagen, which the item slots say nothing about. Without it the machine accepts
+            // the selection, reports a start, and then does nothing -- so a script waits out its
+            // whole timeout for a signal that is never coming. canStart() would have caught it,
+            // but it cannot be called here: on this machine it requires a selection to have been
+            // made already, which is what this method runs before.
+            int mutagen = tile.tank().getFluidAmount();
+            int needed = tile.cfg().mutagenPerItem();
+            if (mutagen < needed) return "not enough mutagen: " + mutagen + " of " + needed + " mB";
+
             return null;
         }
 
@@ -374,7 +383,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             return new Object[]{ tile.tryStart() };
         }
 
-        @Callback(doc = "function(n:number):boolean,string? -- Select mutation (1-based index from listMutations or raw slot key) and start it, returning immediately; wait for the advmutatron_finished signal and then read getOutput(). This used to block until the cycle ended, which froze the server thread for the whole timeout.")
+        @Callback(doc = "function(n:number):boolean,string? -- Select mutation (1-based index from listMutations or raw slot key) and start it, returning immediately; wait for the advmutatron_finished signal and then read getOutput(). Answers false plus a reason when a parent, the labware or the mutagen is missing, or the output slot is full. This used to block until the cycle ended, which froze the server thread for the whole timeout.")
         public Object[] selectAndProduce(Context ctx, Arguments args) {
             int n = args.checkInteger(0);
 

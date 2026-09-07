@@ -6,6 +6,13 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+### Fixed
+- `advmutatron.selectAndProduce` checks the mutagen tank before reporting a start. It used to
+  answer `true` with an empty tank: the machine accepted the selection, never ran, and a script
+  waited out its whole timeout for a signal that was never coming. `canStart()` would have caught
+  it but cannot be called there -- on this machine it requires a selection to have been made
+  already, which is the very thing the check runs before.
+
 ### Added
 - `industrial_apiary` gains `getRedstoneMode()` and `setRedstoneMode(mode)`, the first callback in
   the mod that changes a machine rather than reading it: it is how a script stops an apiary and

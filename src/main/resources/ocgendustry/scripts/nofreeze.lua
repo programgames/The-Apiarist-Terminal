@@ -109,19 +109,24 @@ until finished or not call("isWorking")
 
 local waited = computer.uptime() - waitFrom
 
+local out = call("getOutput")
+local produced = type(out) == "table"
+
 if finished then
   print(string.format("[ OK ] advmutatron_finished after %.1fs", waited))
-elseif not call("isWorking") then
+elseif produced then
+  -- Not working and something in the output slot: the cycle ran and ended before we listened.
   print(string.format("[ OK ] the cycle ended within %.1fs, signal not caught", waited))
 else
-  print(string.format("[    ] still working after %.1fs -- raise the timeout", waited))
+  -- Not working and nothing produced. The machine never ran -- reporting that as a finished cycle
+  -- would turn a refusal into a success, which is how a missing mutagen looked like a pass.
+  print(string.format("[FAIL] the machine never ran and produced nothing, after %.1fs. "
+    .. "selectAndProduce answered true for a cycle that could not happen -- check the mutagen "
+    .. "tank with getTank().", waited))
 end
 
-local out = call("getOutput")
-if type(out) == "table" then
+if produced then
   print(string.format("output: %s x%s", tostring(out.label or out.name), tostring(out.count)))
-else
-  print("output slot empty -- the product may have been pulled already")
 end
 
 print("")
