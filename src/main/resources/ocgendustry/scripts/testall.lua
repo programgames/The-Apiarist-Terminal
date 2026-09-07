@@ -238,12 +238,14 @@ local function testApiary()
   print(string.format("== industrial_apiary  %s", addr:sub(1, 8)))
 
   local working = call(addr, "isWorking")
-  local energy, capacity = call(addr, "getEnergy")
-  if energy then
-    ok("state", string.format("working %s, energy %s/%s",
-      tostring(working), tostring(energy), tostring(capacity)))
+  -- getEnergy answers one table, { stored, capacity }, on every component of this mod -- not two
+  -- numbers. %.0f rather than %d: these arrive as Java floats and %d raises on a non-integer.
+  local energy = call(addr, "getEnergy")
+  if type(energy) == "table" and energy.capacity and energy.capacity > 0 then
+    ok("state", string.format("working %s, energy %.0f/%.0f",
+      tostring(working), energy.stored, energy.capacity))
   else
-    ko("state", "getEnergy failed")
+    ko("state", "getEnergy reported no capacity")
   end
 
   local slots = call(addr, "listSlots")
