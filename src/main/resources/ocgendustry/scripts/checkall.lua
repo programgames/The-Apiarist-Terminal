@@ -19,10 +19,10 @@
     generic energy driver -- several environments share the block, which is the whole reason
     MachineEnvironment has to be final. Only ours are checked below.
 
-  What this does NOT cover, and needs blocks placed instead:
+  What this does NOT cover, because it needs a machine loaded rather than a callback called:
     genetic_transposer   the isValidInputs(blank, template) argument order, once reversed
     dna_extractor        silence on _output, and canStart answering "not supported"
-  Place those two, then run testall.
+  Both are testall's job. The last line below says whether they are on the network yet.
 ]]
 
 local apiarist = require("apiarist")
@@ -239,5 +239,17 @@ end
 print("")
 print(string.rep("-", 52))
 print(string.format("%d passed, %d failed, %d not observed", pass, fail, info))
+
+-- What testall still needs, asked of the network rather than assumed. Printing a fixed list of
+-- blocks to place reads as an instruction to stop, which is wrong once they are placed.
+local missing = {}
+for _, name in ipairs({ "genetic_transposer", "dna_extractor" }) do
+  if not wrapped[name] then missing[#missing + 1] = name end
+end
+
 print("")
-print("Still needs blocks: place a genetic_transposer and a dna_extractor, then run testall.")
+if #missing == 0 then
+  print("Every block testall needs is on the network. Run testall next.")
+else
+  print("For testall, still to place: " .. table.concat(missing, ", "))
+end
