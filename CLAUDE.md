@@ -57,7 +57,12 @@ src/main/java/net/ocgendustry/
 src/main/resources/
   mcmod.info                   version/mcversion injected by processResources
   META-INF/ocgendustry_at.cfg  access transformer named by the jar manifest (FMLAT), empty placeholder
-  ocgendustry/scripts/*.lua    reference OC programs
+  ocgendustry/lib/apiarist.lua the library players call from their own programs -- shipped
+  ocgendustry/examples/*.lua   runnable programs and worked rigs -- shipped
+dev/scripts/*.lua             acceptance tooling: testall, machine_test, checkall, nofreeze.
+                              Deliberately NOT in the jar -- it checks this mod, it is not part of
+                              it. installDevScripts puts it on a dev computer; setupDevDisk's
+                              floppy carries only what ships.
 src/test/java/…               TuningTest, MutatronLogicTest, DriverAdvMutatronDocExamplesTest,
                               MachineComponentNamesTest, MachineEnvironmentDocsTest
 docs/components/<name>.md      per-component callback reference

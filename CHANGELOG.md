@@ -23,7 +23,11 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   processing machines already did. A script driving any machine through the generic inventory
   calls iterates over that field, and it came back `nil` from the two components most worth
   driving.
-- `docs/scripts.md`: what each of the nine shipped Lua files does, the library's whole surface, and
+- The Lua files are split by who they are for. The jar ships `ocgendustry/lib/apiarist.lua` and
+  four runnable programs in `ocgendustry/examples/`; the acceptance tooling -- `testall`,
+  `machine_test`, `checkall`, `nofreeze` -- moves to `dev/scripts/` and is no longer in the jar. It
+  was written to check this mod, not to be used with it, and shipping it to players said otherwise.
+- `docs/scripts.md`: what each shipped Lua file does, the library's whole surface, and
   how to get them out of the jar and onto a computer. Five of the programs were documented nowhere,
   and the README did not mention that the jar carries any.
 - `testall` writes everything it prints to `/home/testall.txt` as well. A full run is several

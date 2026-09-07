@@ -19,6 +19,10 @@ apply plugin: 'java'
 apply plugin: 'com.matthewprenger.cursegradle'
 
 version = '0.2.0'
+
+// A literal newline, spelled out: escapes inside Groovy strings written by tooling are a
+// recurring source of broken build scripts here.
+def NEWLINE = System.lineSeparator()
 group = 'net.ocgendustry'
 archivesBaseName = 'apiarist-terminal'
 
@@ -234,10 +238,12 @@ task setupDevDisk {
     description = 'Installs the reference Lua programs as an OpenComputers loot floppy in both dev worlds'
 
     doLast {
-        def scripts = file('src/main/resources/ocgendustry/scripts')
-        // The library is required by name; everything else is run by name. OpenOS puts /usr/lib on
-        // package.path and /usr/bin on the shell's PATH, so the split decides how each is reached.
-        def library = 'apiarist.lua'
+        // Only what the jar ships. The floppy is what a player would be handed, so it carries the
+        // library and the worked examples and none of the acceptance tooling.
+        // OpenOS puts /usr/lib on package.path and /usr/bin on the shell's PATH, which is what
+        // decides whether a file is required by name or run by name.
+        def library = file('src/main/resources/ocgendustry/lib')
+        def examples = file('src/main/resources/ocgendustry/examples')
 
         // A client save is named by the player and lives under run/saves; a dedicated server always
         // uses world/. run/world exists too whenever a server has been started without
@@ -250,8 +256,8 @@ task setupDevDisk {
             def disk = new File(world, 'opencomputers/loot/apiarist')
             delete disk
             copy {
-                from(scripts) { include library; into 'usr/lib' }
-                from(scripts) { exclude library; into 'usr/bin' }
+                from(library) { into 'usr/lib' }
+                from(examples) { into 'usr/bin' }
                 into disk
             }
             new File(disk, '.prop').text = '{label="Apiarist Terminal"}\n'
@@ -286,8 +292,11 @@ task installDevScripts {
     description = 'Copies the reference Lua programs onto every dev computer that already runs OpenOS'
 
     doLast {
-        def scripts = file('src/main/resources/ocgendustry/scripts')
-        def library = 'apiarist.lua'
+        def library = file('src/main/resources/ocgendustry/lib')
+        def examples = file('src/main/resources/ocgendustry/examples')
+        // The acceptance tooling is not in the jar and is not meant to be: it exists to check
+        // this mod, not to be used with it. A dev computer gets it anyway -- that is its point.
+        def tooling = file('dev/scripts')
         def installed = 0
         def buffered = []
 
@@ -306,8 +315,9 @@ task installDevScripts {
 
                 def disk = candidate.parentFile
                 copy {
-                    from(scripts) { include library; into 'usr/lib' }
-                    from(scripts) { exclude library; into 'usr/bin' }
+                    from(library) { into 'usr/lib' }
+                    from(examples) { into 'usr/bin' }
+                    from(tooling) { into 'usr/bin' }
                     into disk
                 }
                 installed++

@@ -38,10 +38,11 @@ Full callback reference can be found in per-component docs, along with quick sta
 - Industrial Apiary: `docs/components/industrial_apiary.md`
 - The eight other machines: `docs/components/processing_machines.md`
 
-## Lua programs and the library
-The jar carries nine Lua files under `ocgendustry/scripts/`: a library, `apiarist.lua`, and eight
-reference programs. `docs/scripts.md` says what each one does and how to get them onto a computer —
-they are jar resources, so a computer cannot reach them by itself.
+## Lua library and programs
+The jar carries `ocgendustry/lib/apiarist.lua`, a library to call from your own programs, and four
+runnable programs in `ocgendustry/examples/` — `survey`, `species`, and two worked automation rigs.
+`docs/scripts.md` says what each does and how to get them onto a computer, since they are jar
+resources and a computer cannot reach them by itself.
 
 `apiarist.lua` is the one meant for your own programs. A callback cannot wait for a machine without
 holding the server thread, so the components expose state and signals and nothing that blocks; the
