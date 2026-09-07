@@ -126,7 +126,80 @@ end
 -- until st.freed
 ```
 
-## Reading a species genome
+## Working with genes
+
+### The thirteen chromosomes
+
+A bee's genome is thirteen chromosomes, and `getSpeciesTemplate` returns one entry per chromosome,
+keyed by the name Forestry itself uses:
+
+| Chromosome | What it decides |
+|---|---|
+| `species` | the species itself, which sets the comb and the default of everything else |
+| `speed` | how fast a cycle runs |
+| `lifespan` | how long a queen lasts |
+| `fertility` | how many drones a queen leaves behind |
+| `temperature_tolerance`, `humidity_tolerance` | how far from its preferred climate it still works |
+| `never_sleeps` | whether it works at night |
+| `tolerates_rain` | whether it works in rain |
+| `cave_dwelling` | whether it works without sky access |
+| `flower_provider` | which flowers it needs |
+| `flowering` | how fast it pollinates |
+| `territory` | how far it reaches |
+| `effect` | the special effect it applies |
+
+Each is `{ uid, name, dominant }`. The list comes from the species root's karyotype rather than a
+fixed order, so it stays right if Forestry reorders them.
+
+### What `dominant` means
+
+A real bee carries **two** alleles per chromosome, one from each parent. `dominant` says which wins
+when they differ: a dominant allele is expressed even when paired with a recessive one, and a
+recessive trait shows only when both sides carry it.
+
+That is what makes it worth reading before a cross. A recessive trait you want has to come from
+both parents, or it is carried silently and never shows.
+
+### A species default is not your bee's genome
+
+`getSpeciesTemplate` answers what a species is *by default* -- what a fresh one out of a Genetic
+Template holds. The bee in your apiary has been bred, and carries whatever its parents gave it.
+
+This component cannot read that individual genome. `getBees()` returns only what the slot holds --
+`{ name, label, nbt, count }` -- because reading a full genome off a stack means walking Forestry's
+NBT, which is a different job from driving a machine. Use the Genetic Sampler for that.
+
+So `getSpeciesTemplate` is for **deciding what to breed towards**: it tells you what a target
+species is worth before you spend labware getting there.
+
+### Comparing two species
+
+The practical use -- what a cross towards another species would change:
+
+```lua
+local apiary = require("component").industrial_apiary
+
+local function compare(a, b)
+  local ga, gb = apiary.getSpeciesTemplate(a), apiary.getSpeciesTemplate(b)
+  if not ga then return print(a .. ": unknown") end
+  if not gb then return print(b .. ": unknown") end
+
+  for chromosome, allele in pairs(ga) do
+    local other = gb[chromosome]
+    if other and other.uid ~= allele.uid then
+      print(string.format("%-22s %s -> %s%s", chromosome, allele.name, other.name,
+        other.dominant and "" or "  (recessive: needs both parents)"))
+    end
+  end
+end
+
+compare("forestry.speciesForest", "forestry.speciesCommon")
+```
+
+Only the chromosomes that differ are printed, and the recessive ones are flagged: those are the
+ones a single cross will not give you.
+
+### Listing and reading, plainly
 
 ```lua
 local apiary = require("component").industrial_apiary
