@@ -214,7 +214,7 @@ public final class DriverApiary extends DriverSidedTileEntity {
 
         // ---- API ----
 
-        @Callback(doc = "function():table -- Returns slot groups for generic item transfer: { queen:number, drone:number, bees:number[], upgrades:number[], outputs:number[] }")
+        @Callback(doc = "function():table -- Returns slot groups for generic item transfer: { queen:number, drone:number, bees:number[], upgrades:number[], outputs:number[], size:number }")
         public Object[] listSlots(Context ctx, Arguments args) {
             LinkedHashMap<String, Object> slots = new LinkedHashMap<>();
 
@@ -223,6 +223,11 @@ public final class DriverApiary extends DriverSidedTileEntity {
             slots.put("bees", new Object[]{slotQueen(), slotDrone()});
             slots.put("upgrades", toArray(slotsUpgrades()));
             slots.put("outputs", toArray(slotsOutput()));
+
+            // Every listSlots reports size, including the two hand-written drivers: a script that
+            // drives any machine through the generic inventory calls iterates over it, and getting
+            // nil back from the two most interesting components makes one loop into three.
+            slots.put("size", tile.getSizeInventory());
 
             return new Object[]{slots};
         }

@@ -13,7 +13,7 @@ Use OpenComputers' inventory pushItems/pullItems with these slot indices.
 
 ## Callbacks
 - listSlots(): table
-  - Returns { in1:number, in2:number, labware:number, output:number, selectors:number[] }.
+  - Returns { in1:number, in2:number, labware:number, output:number, selectors:number[], size:number }.
 - listMutations(): table
   - Array-like (1..N) of { index, key, name, label?, nbt? }.
 - setMutation(n:number): boolean, string?

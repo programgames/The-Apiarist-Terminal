@@ -12,6 +12,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   starts it again. The four modes are the ones the machine's own GUI button cycles through.
 - `advmutatron` and `industrial_apiary` gain `isWorking()` and `getEnergy()`, which the eight
   processing machines already had. A script no longer has to special-case them.
+- `listSlots()` on `advmutatron` and `industrial_apiary` now reports `size`, as the eight
+  processing machines already did. A script driving any machine through the generic inventory
+  calls iterates over that field, and it came back `nil` from the two components most worth
+  driving.
 - `ocgendustry/scripts/apiarist.lua`, a library that restores the one-call ergonomics the blocking
   callbacks used to offer -- `machine:runCycle(timeout)`, `adv:produce(n, timeout)`,
   `apiary:waitForPrincess(timeout)` -- with the waiting done in Lua, where it is allowed.

@@ -12,7 +12,7 @@ Use OpenComputers' inventory pushItems/pullItems with these slot indices.
 
 ## Callbacks
 - listSlots(): table
-  - Returns { queen:number, drone:number, bees:number[], upgrades:number[], outputs:number[] }.
+  - Returns { queen:number, drone:number, bees:number[], upgrades:number[], outputs:number[], size:number }.
 - getBees(): table
   - { queen:table?, drone:table? } shallow item info.
 - listUpgrades(): table[]

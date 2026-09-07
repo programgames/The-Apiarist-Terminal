@@ -219,7 +219,7 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             return out;
         }
 
-        @Callback(doc = "function():table -- Returns slot indices for generic item transfer: { in1:number, in2:number, labware:number, output:number, selectors:number[] }")
+        @Callback(doc = "function():table -- Returns slot indices for generic item transfer: { in1:number, in2:number, labware:number, output:number, selectors:number[], size:number }")
         public Object[] listSlots(Context ctx, Arguments args) {
             LinkedHashMap<String, Object> slots = new LinkedHashMap<>();
 
@@ -232,6 +232,11 @@ public final class DriverAdvMutatron extends DriverSidedTileEntity {
             Object[] boxed = new Object[selectors.length];
             for (int i = 0; i < selectors.length; i++) boxed[i] = selectors[i];
             slots.put("selectors", boxed);
+
+            // Every listSlots reports size, including the two hand-written drivers: a script that
+            // drives any machine through the generic inventory calls iterates over it, and getting
+            // nil back from the two most interesting components makes one loop into three.
+            slots.put("size", tile.getSizeInventory());
 
             return new Object[]{ slots };
         }
