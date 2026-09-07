@@ -54,6 +54,11 @@ public final class DriverTransposer extends MachineDriver<TileTransposer> {
         // Argument order matters and is (blank, template): Gendustry's own isItemValidForSlot calls
         // it that way round from both slots. Passing (template, blank) reports every pair as
         // incompatible, including pairs the machine is happily processing.
+        //
+        // What it accepts is like onto like -- a Gene Sample onto a Gene Sample Blank, or a
+        // Genetic Template onto another template of the same species. A template against a blank
+        // sample is not a valid pair: a template is a whole genome and a sample is one gene.
+        // docs/components/processing_machines.md has the table.
         if (!tile.isValidInputs(blank, template)) return "incompatible inputs";
 
         return null;

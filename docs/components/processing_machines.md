@@ -39,6 +39,25 @@ OpenComputers' generic inventory and energy drivers, and the higher priority win
 | Protein Liquifier | `protein_liquifier` | `inMeat` | `output` | no / no |
 | Mutagen Producer | `mutagen_producer` | none named | `output` | no / no |
 
+### What the Genetic Transposer accepts
+
+`isValidInputs()` answers `false, "incompatible inputs"` for a pair Gendustry will not copy, and
+which pairs those are is not obvious from the slot names. The machine duplicates *like onto like*:
+
+| `inBlank` | `inTemplate` | Result |
+|---|---|---|
+| Gene Sample Blank | Gene Sample | the single gene is copied onto the blank |
+| Genetic Template | Genetic Template of the **same species** | the template is duplicated |
+| either | empty | accepted, nothing to do yet |
+
+A Genetic Template against a Gene Sample Blank is **not** a valid pair, and never was: a template
+is a whole genome and a gene sample is one gene, so there is nothing to copy from one into the
+other. Gendustry checks this in `TileTransposer.isValidInputs`, matching on the item types and, for
+two templates, comparing `GeneTemplate.getSpecies` on both.
+
+The driver delegates that verdict rather than restating it, so this table describes Gendustry's
+rule and not a second copy of it that could drift.
+
 Two naming notes:
 
 - `genetic_transposer`, not `transposer`: OpenComputers ships its own Transposer block under that
