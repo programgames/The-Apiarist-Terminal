@@ -75,8 +75,11 @@ if args[1] == "vs" then
     return
   end
 
-  print(string.format("queen (%s, generation %d) against %s",
-    g.bee.type, g.bee.generation, target))
+  local speciesNow = g.chromosomes.species and g.chromosomes.species.active.name or "?"
+  local speciesWant = template.species and template.species.name or target
+
+  print(string.format("your queen : %s %s, generation %d", speciesNow, g.bee.type, g.bee.generation))
+  print(string.format("target     : %s  (%s)", speciesWant, target))
   print("")
 
   local same, todo = 0, {}
@@ -85,29 +88,39 @@ if args[1] == "vs" then
     local has = g.chromosomes[k]
 
     if has and has.active.uid == want.uid then
-      -- Already the right allele, but carrying a different one behind it means a cross can still
-      -- lose it. That is worth saying, and is invisible from the active allele alone.
-      if has.pure then same = same + 1
-      else todo[#todo + 1] = { k, has.active.name .. " (carrying " .. has.inactive.name .. ")",
-                               want.name, "not fixed" } end
+      if has.pure then
+        same = same + 1
+      else
+        -- The right allele is already showing, but the other side carries something else, so a
+        -- cross can still lose it. Invisible from the active allele alone, and worth saying.
+        todo[#todo + 1] = { k, has.active.name .. " (+" .. has.inactive.name .. ")", want.name,
+                            "already right, not fixed" }
+      end
     elseif has then
       todo[#todo + 1] = { k, has.active.name, want.name,
-        want.dominant and "dominant" or "RECESSIVE, needs both parents" }
+        want.dominant and "one cross (dominant)" or "both parents (recessive)" }
     end
   end
 
-  print(string.format("%d of 13 already fixed as wanted", same))
+  print(string.format("%d of 13 chromosomes already match the target and breed true.", same))
   if #todo == 0 then
-    print("nothing left to breed for -- this queen is the target")
+    print("Nothing left to breed for -- this queen is the target.")
 
     return
   end
 
+  print(string.format("%d differ:", #todo))
   print("")
-  print(string.format("  %-22s %-24s %-12s %s", "chromosome", "has", "wants", ""))
+  print(string.format("  %-22s %-24s %-12s %s",
+    "chromosome", "your queen has", "target has", "how to get it"))
+  print("  " .. string.rep("-", 74))
   for _, row in ipairs(todo) do
     print(string.format("  %-22s %-24s %-12s %s", row[1], row[2], row[3], row[4]))
   end
+  print("")
+  print("\"one cross\" -- a dominant allele shows up from a single parent that has it.")
+  print("\"both parents\" -- a recessive one stays hidden until both sides carry it, which")
+  print("                 takes several generations.")
 
   return
 end
