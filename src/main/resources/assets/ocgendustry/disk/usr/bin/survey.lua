@@ -9,13 +9,11 @@
   are idle, empty or unpowered. It records what every Gendustry component reports about itself, so
   the state of a whole base can be reviewed off-screen.
 
-  The report is far longer than a screen, so it is written to a file. To read it off the computer,
-  save the world -- quitting to title does it -- and the file appears on the host under
-  saves/<world>/opencomputers/<uuid>/home/, or world/opencomputers/... on a dedicated server.
-  OpenComputers only flushes its filesystems on save, so nothing is there before that.
+  The report is far longer than a screen, so it is written to /home/report.txt. Read it in game
+  with `edit /home/report.txt` -- arrows to scroll, Ctrl+W to leave.
 
-  `pastebin put` is not an option any more: the API key baked into OpenOS 1.8.7 is dead upstream
-  and pastebin.com answers 422 "Bad API request, invalid api_dev_key" to every anonymous upload.
+  (`pastebin put` is not an option any more: the API key baked into OpenOS 1.8.7 is dead upstream
+  and pastebin.com answers 422 to every anonymous upload.)
 ]]
 
 local component = require("component")
@@ -113,14 +111,19 @@ for _, kind in ipairs(order) do
         wErr = "not exposed by this driver"
       end
       local progress = call(addr, "getProgress")
+      -- "nil" is what Lua calls an absent value, not something a reader should have to know.
       w(string.format("working: %s%s   progress: %s",
-        tostring(working), wErr and (" (" .. wErr .. ")") or "", tostring(progress)))
+        working == nil and "unknown" or tostring(working),
+        wErr and (" (" .. wErr .. ")") or "",
+        progress == nil and "unknown" or tostring(progress)))
 
       local energy = call(addr, "getEnergy")
       if type(energy) == "table" then
         w(string.format("energy: %.0f / %.0f", energy.stored or 0, energy.capacity or 0))
       else
-        -- The hand-written drivers expose the buffer under different names.
+        -- Not one of ours, then: every component of this mod answers getEnergy with
+        -- { stored, capacity }. This is OpenComputers' own energy driver, which shares the block
+        -- and names the same buffer differently.
         local stored = call(addr, "getEnergyStored")
         local max = call(addr, "getMaxEnergyStored")
         w(string.format("energy: %s / %s", tostring(stored), tostring(max)))
@@ -191,12 +194,17 @@ for _, kind in ipairs(order) do
 
       -- Full inventory as the generic OpenComputers driver sees it, so the report also shows
       -- what sits in the input slots, which our read-only driver does not expose.
+      --
+      -- Mind the numbering: the slot indices above come from this mod and start at 0, the way
+      -- Gendustry names them. OpenComputers' inventory calls start at 1. The line below says so,
+      -- because a script written from this report and off by one is a bad afternoon.
       local size = call(addr, "getInventorySize")
       if type(size) == "number" then
         for i = 1, size do
           local stack = call(addr, "getStackInSlot", i)
           if type(stack) == "table" then
-            w(string.format("  inv[%d] %s x%s", i, tostring(stack.label or stack.name),
+            w(string.format("  inv[%d] (slot %d) %s x%s", i, i - 1,
+              tostring(stack.label or stack.name),
               tostring(stack.size or stack.count)))
           end
         end
@@ -213,4 +221,4 @@ out:close()
 
 print(string.format("%d components, %d Gendustry, %d working", total, found, running))
 print("report written to " .. path)
-print("save the world and read it on the host, under opencomputers/<uuid>" .. path)
+print("read it with:  edit " .. path)

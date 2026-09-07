@@ -173,13 +173,15 @@ elseif mode == "dump" then
   out:close()
 
   print(string.format("%d species written to %s", #arr, path))
-  print("save the world and read it on the host, under opencomputers/<uuid>" .. path)
+  print("read it with:  edit " .. path)
 
 elseif mode then
   local arr = fetch(mode)
   if not arr then return end
 
   print(string.format("%d species matching '%s'", #arr, mode))
+  print("(dominant means this species wins the species chromosome in a cross; recessive loses it")
+  print(" unless both parents carry it)")
   showList(arr, 40)
 
 else

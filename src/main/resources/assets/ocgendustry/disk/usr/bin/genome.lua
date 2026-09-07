@@ -47,8 +47,18 @@ end
 
 local function fetch(slot)
   local g, why = call("getGenome", slot)
+
+  -- A callback that refuses answers false plus a reason, so a table is the only shape worth
+  -- walking. Iterating whatever came back is how a bad read once got reported as a pass.
+  if type(g) == "table" and type(g.chromosomes) ~= "table" then
+    print("the component answered without a chromosome table -- is the mod up to date?")
+
+    return nil
+  end
+
   if not g then
-    print(slot .. ": " .. tostring(why))
+    -- The reason already names the slot it is about; saying it twice reads like a stutter.
+    print(tostring(why))
 
     return nil
   end
@@ -102,7 +112,14 @@ if args[1] == "vs" then
     end
   end
 
-  print(string.format("%d of 13 chromosomes already match the target and breed true.", same))
+  -- Count against the template rather than a hard 13: the two numbers have to add up, and a
+  -- chromosome the template leaves unset is not a difference the reader can act on.
+  local total = #sortedKeys(template)
+  print(string.format("%d of %d chromosomes already match the target and breed true.", same, total))
+  if same + #todo < total then
+    print(string.format("(%d not comparable -- the target template leaves them unset)",
+      total - same - #todo))
+  end
   if #todo == 0 then
     print("Nothing left to breed for -- this queen is the target.")
 
@@ -130,10 +147,17 @@ local slot = args[1] or "queen"
 local g = fetch(slot)
 if not g then return end
 
-print(string.format("%s -- %s, generation %d, %s%s",
-  slot, g.bee.type, g.bee.generation,
-  g.bee.natural and "natural" or "artificial",
+-- "queen" is the slot, "princess" can be what is in it: printing them side by side unlabelled
+-- reads as a contradiction.
+print(string.format("%s slot: %s %s, generation %d%s",
+  slot,
+  g.chromosomes.species and g.chromosomes.species.active.name or "?",
+  g.bee.type,
+  g.bee.generation,
   g.bee.mated and ", mated" or ""))
+print(string.format("  %s, %s",
+  g.bee.natural and "natural" or "artificial",
+  g.bee.analyzed and "analysed" or "not analysed"))
 print("")
 
 local mixed = 0
