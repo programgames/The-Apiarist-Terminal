@@ -33,6 +33,12 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   processing machines already did. A script driving any machine through the generic inventory
   calls iterates over that field, and it came back `nil` from the two components most worth
   driving.
+- `genome`, on the floppy: the bee in the apiary read chromosome by chromosome, and `genome vs
+  <species>` putting it against a target so a breeding decision is one command rather than two
+  callbacks and a comparison written by hand. It goes through `component.invoke` rather than the
+  `component.<name>` proxy, which OpenOS caches per address in a Lua state that survives a world
+  reload -- so a proxy built before a mod update keeps answering with the old method list and a new
+  callback looks like it does not exist.
 - An OpenComputers floppy, **Apiarist Terminal**, registered by the mod: `install` puts
   `apiarist.lua` and the example programs where `package.path` and the shell already look. Until
   now the only way to reach them was to open the jar with a zip tool, which is not a thing anyone

@@ -60,6 +60,8 @@ would rather read one than run it.
 | `survey` | Every component on the network and everything it reports about itself. Read-only: it starts nothing and consumes nothing, so it is safe on machines that are idle, empty or unpowered. Writes `/home/report.txt`, which is longer than a screen. |
 | `species [filter]` | The bee species Forestry knows about, read through the apiary, grouped by the mod that registered them. |
 | `species get <uid>` | One species' default genome: its thirteen chromosomes, each with its dominance. |
+| `genome [queen\|drone]` | What the bee in that slot actually carries: both alleles per chromosome, with the mixed ones marked. A mixed chromosome is still carrying something from an older parent and is the only kind a further cross can change. |
+| `genome vs <species>` | The queen against a target species: how many chromosomes are already fixed as wanted, and what is left — flagging the recessive ones, which need both parents. |
 | `advmutatron_fresh` | A full automation rig: an OpenComputers Transposer feeding an Advanced Mutatron from a chest, breeding a fresh line and moving the product to an apiary. |
 | `advmutatron_reuse` | The same rig, reusing the mutatron's own product as the next parent. |
 
