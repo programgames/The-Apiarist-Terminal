@@ -31,6 +31,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   four runnable programs in `ocgendustry/examples/`; the acceptance tooling -- `testall`,
   `machine_test`, `checkall`, `nofreeze` -- moves to `dev/scripts/` and is no longer in the jar. It
   was written to check this mod, not to be used with it, and shipping it to players said otherwise.
+- `docs/components/industrial_apiary.md` gains a section on working with genes: what each of the
+  thirteen chromosomes decides, what `dominant` means for a cross, and a worked comparison of two
+  species. It also says plainly what the component cannot do -- read the genome of the individual
+  bee in the slot, as opposed to a species' default.
 - `docs/scripts.md`: what each shipped Lua file does, the library's whole surface, and
   how to get them out of the jar and onto a computer. Five of the programs were documented nowhere,
   and the README did not mention that the jar carries any.
