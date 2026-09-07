@@ -134,7 +134,15 @@ guessing at the address of a managed filesystem OpenComputers only creates on fi
 Once a computer does have OpenOS on a hard drive, `installDevScripts` is the shorter way round: a
 managed filesystem is just a directory on the host named by the component address, so the files go
 in with no world reload and no trip through the creative inventory. It recognises an install by its
-`/init.lua` and leaves floppies, RAIDs and tmpfs alone. Reboot the in-game computer afterwards.
+`/init.lua` and leaves floppies, RAIDs and tmpfs alone.
+
+That only works because `setupDevMods` sets **`bufferChanges=false`** in the OpenComputers config.
+The default is `true`: a hard drive sitting in a running computer is held entirely in memory and
+written out when the world saves, so files added underneath are invisible (`survey: file not
+found`) and then overwritten at the next save. Buffering is right for a real server — a crash
+cannot leave a disk out of sync with the computer's state — and wrong for a dev world, where the
+point is to edit the Lua programs from the host. `installDevScripts` warns if it finds the setting
+still on.
 
 `pastebin put` is dead for reading files back off a computer — the API key baked into OpenOS 1.8.7
 is revoked upstream and pastebin.com answers 422. Save the world and read the file on the host;
