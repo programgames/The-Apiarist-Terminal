@@ -64,6 +64,10 @@ Currently exposed defaults:
   `docs/components/processing_machines.md`, under the `processing_machines` category.
 - The signal interval throttles the `_output` signal only. `_started` and `_finished` are raised
   from the machine's own tick, so a short cycle cannot slip between two samples.
+- `industrial_apiary.requireAnalyzedBees` (default **true**): whether `getGenome()` refuses a bee
+  that has not been through a Beealyzer. Forestry keeps the whole genome in NBT either way and uses
+  the analysed flag only for the tooltip, so reading it regardless is possible — and would quietly
+  remove the Beealyzer's reason to exist. Left on, a script sees exactly what a player would.
 
 ### Event controls
 - Global (server/admin): `general.enableEvents` — hard-disables all OC signals from all devices when false.

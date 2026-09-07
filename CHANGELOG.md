@@ -14,6 +14,16 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   already, which is the very thing the check runs before.
 
 ### Added
+- `industrial_apiary` gains `getGenome(slot)`: the genome of the bee actually in the queen or drone
+  slot, one entry per chromosome as `{ active, inactive, pure }`, plus the drone's genome on a mated
+  queen. Until now the component could say what a species is worth by default and nothing about the
+  bee in front of it, so a script could pick a target and never check what it already had.
+  `pure` is reported rather than left to the caller because whether both alleles agree is the one
+  fact that decides if a trait survives the next cross.
+- `industrial_apiary.requireAnalyzedBees` (default true): whether `getGenome` refuses a bee that has
+  not been through a Beealyzer. Forestry keeps the full genome in NBT either way and uses the
+  analysed flag only for the tooltip, so reading it regardless is possible -- and would quietly
+  remove the Beealyzer's purpose. That is a server's decision, not the mod's.
 - `industrial_apiary` gains `getRedstoneMode()` and `setRedstoneMode(mode)`, the first callback in
   the mod that changes a machine rather than reading it: it is how a script stops an apiary and
   starts it again. The four modes are the ones the machine's own GUI button cycles through.

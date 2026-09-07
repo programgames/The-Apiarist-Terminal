@@ -35,6 +35,14 @@ Use OpenComputers' inventory pushItems/pullItems with these slot indices.
   - The default genome of a bee species: one entry per chromosome, keyed by the name Forestry uses — lower_snake_case, not the enum constant: `species`, `speed`, `lifespan`, `fertility`, `temperature_tolerance`, `never_sleeps`, `humidity_tolerance`, `tolerates_rain`, `cave_dwelling`, `flower_provider`, `flowering`, `territory`, `effect`. Each is `{ uid, name, dominant }`.
   - `species` may be an allele UID (`forestry.speciesForest`), an allele name, or a display name; it is resolved through Forestry's registry, so species from Magic Bees, Extra Bees and the rest are found too.
   - The chromosome list comes from the species root's karyotype, not from a fixed order, so it stays correct if Forestry reorders them.
+- getGenome(slot:string): table | false, string
+  - The genome of the bee **actually in** the `queen` or `drone` slot, as `{ bee, chromosomes, mate? }`.
+  - `chromosomes` is keyed exactly like `getSpeciesTemplate`, each entry `{ active, inactive, pure }`.
+    A bee carries two alleles per chromosome and only the active one is expressed; `pure` says
+    whether both sides agree, which is what decides if the trait survives the next cross.
+  - `bee` is `{ type, analyzed, natural, generation, mated }`. A mated queen also answers `mate`,
+    the drone's genome — half of what the next generation is made of.
+  - Refuses an unanalysed bee while `industrial_apiary.requireAnalyzedBees` is on. See below.
 - listSpeciesTemplates([filter:string]): table
   - Every registered bee species as `{ uid, name, dominant, hasTemplate }`, read from Forestry's allele registry. **Not** built by concatenating a prefix and a name: species come from many mods with different prefixes, and guessing a UID only ever finds the vanilla Forestry ones.
   - `filter` keeps the species whose uid or name contains it, case-insensitively. A large pack registers hundreds of species, so filter when you can.
@@ -160,17 +168,49 @@ recessive trait shows only when both sides carry it.
 That is what makes it worth reading before a cross. A recessive trait you want has to come from
 both parents, or it is carried silently and never shows.
 
+### Reading the bee you actually have
+
+`getGenome("queen")` answers the individual in the slot, not the species default:
+
+```lua
+local g = apiary.getGenome("queen")
+if not g then return end
+
+print(g.bee.type, "generation " .. g.bee.generation, g.bee.natural and "natural" or "artificial")
+
+for chromosome, c in pairs(g.chromosomes) do
+  if not c.pure then
+    print(string.format("%-22s %s / %s  (carried, not bred true)",
+      chromosome, c.active.name, c.inactive.name))
+  end
+end
+```
+
+Printing only the impure chromosomes is the useful view: those are the ones still carrying
+something from an older parent, and the ones a further cross can still change. A chromosome where
+`pure` is true is settled.
+
+### Why an unanalysed bee is refused
+
+Forestry keeps the whole genome in NBT whether or not a bee has been through a Beealyzer — the
+analysed flag only decides what the tooltip shows. So reading it regardless is possible, and would
+quietly remove the Beealyzer's reason to exist.
+
+That is a server's call rather than the mod's, so `industrial_apiary.requireAnalyzedBees` decides,
+and it defaults to **on**: a script sees exactly what a player would. Turn it off in a creative
+world, or in a pack that has already automated the analysis.
+
 ### A species default is not your bee's genome
 
 `getSpeciesTemplate` answers what a species is *by default* -- what a fresh one out of a Genetic
 Template holds. The bee in your apiary has been bred, and carries whatever its parents gave it.
 
-This component cannot read that individual genome. `getBees()` returns only what the slot holds --
-`{ name, label, nbt, count }` -- because reading a full genome off a stack means walking Forestry's
-NBT, which is a different job from driving a machine. Use the Genetic Sampler for that.
+`getBees()` stays shallow -- `{ name, label, nbt, count }` -- because most callers only want to
+know whether a slot is occupied. For the genome of the bee in it, use `getGenome`, above.
 
-So `getSpeciesTemplate` is for **deciding what to breed towards**: it tells you what a target
-species is worth before you spend labware getting there.
+The two answer different questions: `getSpeciesTemplate` is for **deciding what to breed towards**,
+`getGenome` for **seeing what you have**. Comparing the two is how a script decides what to do
+next.
 
 ### Comparing what you have with what you want
 

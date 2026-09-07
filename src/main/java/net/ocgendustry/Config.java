@@ -36,6 +36,7 @@ public final class Config {
     // Per-device default for events (applied on environment creation / applyDefaultTuning)
     public static boolean advMutatronDefaultEventsEnabled = true;
     public static boolean apiaryDefaultEventsEnabled = true;
+    public static boolean apiaryRequireAnalyzedBees = true;
     public static boolean processorDefaultEventsEnabled = true;
 
     // Integration test harness (disabled by default; gated for safety)
@@ -128,6 +129,17 @@ public final class Config {
             CAT_APIARY,
             apiaryDefaultEventsEnabled,
             "Default per-device eventsEnabled state for newly created Industrial Apiary components."
+        );
+        apiaryRequireAnalyzedBees = cfg.getBoolean(
+            "requireAnalyzedBees",
+            CAT_APIARY,
+            apiaryRequireAnalyzedBees,
+            "Whether getGenome() refuses a bee that has not been through a Beealyzer. Forestry keeps "
+                + "the full genome in NBT either way and only uses the analysed flag to decide what "
+                + "the tooltip shows, so reading it regardless would quietly remove the Beealyzer's "
+                + "reason to exist. Left on, a script sees exactly what a player would; turned off, "
+                + "it reads the genome of any bee, which suits a creative world or a pack that has "
+                + "automated that step already."
         );
 
         // Processing machines (shared by every generic machine driver)

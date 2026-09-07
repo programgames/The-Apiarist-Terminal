@@ -24,6 +24,9 @@ import forestry.api.apiculture.IBeeRoot;
 import forestry.api.apiculture.EnumBeeType;
 import forestry.api.apiculture.EnumBeeChromosome;
 import forestry.api.apiculture.IAlleleBeeSpecies;
+import forestry.api.apiculture.IBee;
+import forestry.api.apiculture.IBeeGenome;
+import forestry.api.genetics.IGenome;
 import forestry.api.genetics.IAllele;
 import forestry.api.genetics.IChromosomeType;
 import forestry.api.genetics.ISpeciesRoot;
@@ -33,6 +36,7 @@ import net.ocgendustry.util.SignalState;
 import net.ocgendustry.util.Tuning;
 
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -422,6 +426,88 @@ public final class DriverApiary extends DriverSidedTileEntity {
             info.put("dominant", allele.isDominant());
 
             return info;
+        }
+
+        @Callback(doc = "function(slot:string):table|boolean,string? -- Returns the genome of the bee actually in that slot -- \"queen\" or \"drone\" -- as { bee, chromosomes, mate? }. chromosomes is keyed by the chromosome names getSpeciesTemplate uses, each { active, inactive, pure }: a bee carries two alleles per chromosome and only the active one is expressed, so `pure` says whether both sides agree and the trait breeds true. bee is { type, analyzed, natural, generation, mated }, and a mated queen also answers mate, the drone's genome. Returns false plus a reason when the slot is empty, holds no bee, or holds an unanalysed one while industrial_apiary.requireAnalyzedBees is on.")
+        public Object[] getGenome(Context ctx, Arguments args) {
+            String which = args.checkString(0).toLowerCase(Locale.ROOT);
+
+            int slot;
+            if ("queen".equals(which)) slot = slotQueen();
+            else if ("drone".equals(which)) slot = slotDrone();
+            else return new Object[]{ false, "unknown slot: " + which + " (expected queen or drone)" };
+
+            ItemStack stack = getStackInSlot(slot);
+            if (stack == null || stack.isEmpty()) return new Object[]{ false, "the " + which + " slot is empty" };
+
+            ISpeciesRoot root = AlleleManager.alleleRegistry.getSpeciesRoot("rootBees");
+            if (!(root instanceof IBeeRoot)) return new Object[]{ false, "bee root not available" };
+            IBeeRoot bees = (IBeeRoot) root;
+
+            // isMember first, always. Reaching into Forestry's genetic items without genome NBT
+            // floods the log, which is the trap listSlots' neighbours already have to respect.
+            if (!bees.isMember(stack)) return new Object[]{ false, "the " + which + " slot holds no bee" };
+
+            IBee bee = bees.getMember(stack);
+            if (bee == null) return new Object[]{ false, "could not read the bee in the " + which + " slot" };
+
+            // Forestry keeps the whole genome in NBT whether or not the bee has been analysed --
+            // the flag only decides what the tooltip shows. Reading it regardless would quietly
+            // remove the Beealyzer's reason to exist, so that is the server's call, not ours.
+            if (Config.apiaryRequireAnalyzedBees && !bee.isAnalyzed()) {
+                return new Object[]{ false, "this bee has not been analysed -- run it through a "
+                    + "Beealyzer, or turn off industrial_apiary.requireAnalyzedBees" };
+            }
+
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+            out.put("bee", beeInfo(bee, bees.getType(stack)));
+            out.put("chromosomes", genomeInfo(root, bee.getGenome()));
+
+            // A princess or a drone has no mate; a mated queen carries the drone's genome too, and
+            // that is half of what the next generation will be made of.
+            IBeeGenome mate = bee.getMate();
+            if (mate != null) out.put("mate", genomeInfo(root, mate));
+
+            return new Object[]{ out };
+        }
+
+        private static LinkedHashMap<String, Object> beeInfo(IBee bee, EnumBeeType type) {
+            LinkedHashMap<String, Object> info = new LinkedHashMap<>();
+
+            info.put("type", type != null ? type.getName() : "unknown");
+            info.put("analyzed", bee.isAnalyzed());
+            info.put("natural", bee.isNatural());
+            info.put("generation", bee.getGeneration());
+            info.put("mated", bee.getMate() != null);
+
+            return info;
+        }
+
+        /**
+         * One entry per chromosome, walked through the karyotype for the same reason
+         * getSpeciesTemplate walks it: it names each chromosome, so the answer stays correct if
+         * Forestry reorders them, and both callbacks come back keyed the same way.
+         */
+        private static LinkedHashMap<String, Object> genomeInfo(ISpeciesRoot root, IGenome genome) {
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+
+            for (IChromosomeType type : root.getKaryotype()) {
+                IAllele active = genome.getActiveAllele(type);
+                IAllele inactive = genome.getInactiveAllele(type);
+                if (active == null && inactive == null) continue;
+
+                LinkedHashMap<String, Object> pair = new LinkedHashMap<>();
+                if (active != null) pair.put("active", alleleInfo(active));
+                if (inactive != null) pair.put("inactive", alleleInfo(inactive));
+                // Saying it here spares every caller the uid comparison, and it is the one fact
+                // that decides whether a trait survives the next cross.
+                pair.put("pure", active != null && inactive != null
+                    && active.getUID().equals(inactive.getUID()));
+
+                out.put(type.getName(), pair);
+            }
+
+            return out;
         }
 
         @Callback(doc = "function(species:string):table|boolean,string? -- Returns the default genome template of a bee species, keyed by the chromosome name Forestry itself uses, lower_snake_case (species, speed, lifespan, fertility, temperature_tolerance, never_sleeps, humidity_tolerance, tolerates_rain, cave_dwelling, flower_provider, flowering, territory, effect), each { uid, name, dominant }. The species is accepted as an allele UID, an allele name or a display name. Returns false plus a reason when it is unknown or carries no template.")
