@@ -57,8 +57,11 @@ src/main/java/net/ocgendustry/
 src/main/resources/
   mcmod.info                   version/mcversion injected by processResources
   META-INF/ocgendustry_at.cfg  access transformer named by the jar manifest (FMLAT), empty placeholder
-  ocgendustry/lib/apiarist.lua the library players call from their own programs -- shipped
-  ocgendustry/examples/*.lua   runnable programs and worked rigs -- shipped
+  assets/ocgendustry/disk/     THE FLOPPY, laid out verbatim: .prop, usr/lib/apiarist.lua and
+                              usr/bin/*.lua. LootDisk registers it with OpenComputers via
+                              Items.registerFloppy + FileSystem.fromClass, which resolves
+                              /assets/<modid>/disk/ -- so the path is load-bearing, not a
+                              convention. setupDevDisk copies this directory as-is.
 dev/scripts/*.lua             acceptance tooling: testall, machine_test, checkall, nofreeze.
                               Deliberately NOT in the jar -- it checks this mod, it is not part of
                               it. installDevScripts puts it on a dev computer; setupDevDisk's

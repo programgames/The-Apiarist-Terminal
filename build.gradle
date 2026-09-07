@@ -238,12 +238,9 @@ task setupDevDisk {
     description = 'Installs the reference Lua programs as an OpenComputers loot floppy in both dev worlds'
 
     doLast {
-        // Only what the jar ships. The floppy is what a player would be handed, so it carries the
-        // library and the worked examples and none of the acceptance tooling.
-        // OpenOS puts /usr/lib on package.path and /usr/bin on the shell's PATH, which is what
-        // decides whether a file is required by name or run by name.
-        def library = file('src/main/resources/ocgendustry/lib')
-        def examples = file('src/main/resources/ocgendustry/examples')
+        // The jar's floppy, verbatim: that directory is already laid out as the disk, .prop and
+        // all, so a dev world's copy and a player's copy cannot drift apart.
+        def shipped = file('src/main/resources/assets/ocgendustry/disk')
 
         // A client save is named by the player and lives under run/saves; a dedicated server always
         // uses world/. run/world exists too whenever a server has been started without
@@ -256,8 +253,7 @@ task setupDevDisk {
             def disk = new File(world, 'opencomputers/loot/apiarist')
             delete disk
             copy {
-                from(library) { into 'usr/lib' }
-                from(examples) { into 'usr/bin' }
+                from(shipped)
                 into disk
             }
             new File(disk, '.prop').text = '{label="Apiarist Terminal"}\n'
@@ -292,8 +288,8 @@ task installDevScripts {
     description = 'Copies the reference Lua programs onto every dev computer that already runs OpenOS'
 
     doLast {
-        def library = file('src/main/resources/ocgendustry/lib')
-        def examples = file('src/main/resources/ocgendustry/examples')
+        // What the jar ships, plus what it does not: a dev computer wants both.
+        def shipped = file('src/main/resources/assets/ocgendustry/disk')
         // The acceptance tooling is not in the jar and is not meant to be: it exists to check
         // this mod, not to be used with it. A dev computer gets it anyway -- that is its point.
         def tooling = file('dev/scripts')
@@ -315,8 +311,7 @@ task installDevScripts {
 
                 def disk = candidate.parentFile
                 copy {
-                    from(library) { into 'usr/lib' }
-                    from(examples) { into 'usr/bin' }
+                    from(shipped) { exclude '.prop' }
                     from(tooling) { into 'usr/bin' }
                     into disk
                 }

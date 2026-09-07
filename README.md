@@ -39,10 +39,10 @@ Full callback reference can be found in per-component docs, along with quick sta
 - The eight other machines: `docs/components/processing_machines.md`
 
 ## Lua library and programs
-The jar carries `ocgendustry/lib/apiarist.lua`, a library to call from your own programs, and four
-runnable programs in `ocgendustry/examples/` — `survey`, `species`, and two worked automation rigs.
-`docs/scripts.md` says what each does and how to get them onto a computer, since they are jar
-resources and a computer cannot reach them by itself.
+The mod registers an OpenComputers floppy, **Apiarist Terminal** — yellow, in the creative
+inventory beside the OpenOS disk. Put it in a drive and run `install`: you get `apiarist.lua` in
+`/usr/lib` and four programs in `/usr/bin` (`survey`, `species`, and two worked automation rigs).
+`docs/scripts.md` covers what each does.
 
 `apiarist.lua` is the one meant for your own programs. A callback cannot wait for a machine without
 holding the server thread, so the components expose state and signals and nothing that blocks; the

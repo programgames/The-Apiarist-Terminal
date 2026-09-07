@@ -27,7 +27,10 @@ public class OCGendustryMod {
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
-        // No-op - drivers already registered
+        // The floppy that carries apiarist.lua and the example programs. In init rather than
+        // preInit: driver registration has to happen early, item registration does not, and
+        // OpenComputers is ready for this by now.
+        LootDisk.register();
     }
 
     @Mod.EventHandler

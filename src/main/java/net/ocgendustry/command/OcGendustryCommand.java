@@ -144,8 +144,8 @@ public class OcGendustryCommand extends CommandBase {
 
             //noinspection ResultOfMethodCallIgnored
             outDir.mkdirs();
-            if (writeFresh) wrote += writeResource(outDir, "advmutatron_fresh.lua", "/ocgendustry/examples/advmutatron_fresh.lua", sideReplacements);
-            if (writeReuse) wrote += writeResource(outDir, "advmutatron_reuse.lua", "/ocgendustry/examples/advmutatron_reuse.lua", sideReplacements);
+            if (writeFresh) wrote += writeResource(outDir, "advmutatron_fresh.lua", "/assets/ocgendustry/disk/usr/bin/advmutatron_fresh.lua", sideReplacements);
+            if (writeReuse) wrote += writeResource(outDir, "advmutatron_reuse.lua", "/assets/ocgendustry/disk/usr/bin/advmutatron_reuse.lua", sideReplacements);
 
             if (wrote == 0) {
                 player.sendMessage(new TextComponentString(TextFormatting.YELLOW + "Nothing written; specify fresh, reuse or all"));

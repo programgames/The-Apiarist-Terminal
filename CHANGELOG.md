@@ -23,6 +23,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   processing machines already did. A script driving any machine through the generic inventory
   calls iterates over that field, and it came back `nil` from the two components most worth
   driving.
+- An OpenComputers floppy, **Apiarist Terminal**, registered by the mod: `install` puts
+  `apiarist.lua` and the example programs where `package.path` and the shell already look. Until
+  now the only way to reach them was to open the jar with a zip tool, which is not a thing anyone
+  should have to guess at.
 - The Lua files are split by who they are for. The jar ships `ocgendustry/lib/apiarist.lua` and
   four runnable programs in `ocgendustry/examples/`; the acceptance tooling -- `testall`,
   `machine_test`, `checkall`, `nofreeze` -- moves to `dev/scripts/` and is no longer in the jar. It

@@ -2,8 +2,8 @@
 
 Two different things live under this heading, and mixing them up helps nobody.
 
-**The jar ships five files**, under `ocgendustry/`: a library you call from your own programs, and
-four worked programs you can run as they are. That is what this page is about.
+**The jar ships a floppy**, under `assets/ocgendustry/disk/`: a library you call from your own
+programs, and four worked programs you can run as they are. That is what this page is about.
 
 **Four more live in `dev/scripts/` in the repository and are deliberately not in the jar**:
 `testall`, `machine_test`, `checkall` and `nofreeze`. They exist to check that this mod behaves, not
@@ -65,13 +65,19 @@ would rather read than run.
 
 ## Getting them onto a computer
 
-They are resources inside the jar, so a computer cannot reach them by itself. Open
-`apiarist-terminal-<version>.jar` with any zip tool and copy what you want out:
+**Take the floppy.** The mod registers one with OpenComputers — *Apiarist Terminal*, yellow, in the
+creative inventory next to the OpenOS and OPPM disks, and in the wrench cycling other loot disks
+take part in. Put it in a disk drive and run:
 
-- `ocgendustry/lib/apiarist.lua` goes in `/usr/lib/` — that is on `package.path`, so
-  `require("apiarist")` finds it
-- everything in `ocgendustry/examples/` goes in `/usr/bin/` — that is on the shell's `PATH`, so each
-  becomes a command
+```
+install
+```
+
+That copies the library to `/usr/lib` and the programs to `/usr/bin` — where `package.path` and the
+shell already look, so `require("apiarist")` and `survey` work straight away, with no paths to set.
+
+If you would rather read the files than install them, they are in the jar under
+`assets/ocgendustry/disk/`, laid out exactly as the floppy.
 
 To write them from outside the game, a computer's hard drive is a directory on the host, named by
 the component address:
