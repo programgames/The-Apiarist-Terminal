@@ -6,6 +6,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-07
+
 ### Fixed
 - `advmutatron.selectAndProduce` checks the mutagen tank before reporting a start. It used to
   answer `true` with an empty tank: the machine accepted the selection, never ran, and a script
@@ -158,6 +160,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   recreated with default values** — re-apply any customised setting after upgrading.
 - Interval/wait clamping moved to `net.ocgendustry.util.Tuning` and is now shared by both drivers; the Industrial
   Apiary previously duplicated the bounds inline. `MutatronLogic` keeps only the mutation-selection helper.
+- The mod list entry credits the upstream project rather than the fork it happened to be built in:
+  `mcmod.info` names `Aedial` as author and links `Aedial/The-Apiarist-Terminal`. Its description
+  had also stopped at the two components of the 0.1 line and now lists all ten, the signals and the
+  floppy.
 
 ### Removed
 - Dead code: an unused `writeResource` overload, an unused local in the test harness, an unused import and a

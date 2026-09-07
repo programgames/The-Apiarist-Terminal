@@ -18,7 +18,7 @@ apply plugin: 'net.minecraftforge.gradle.forge'
 apply plugin: 'java'
 apply plugin: 'com.matthewprenger.cursegradle'
 
-version = '0.2.0'
+version = '0.3.0'
 
 // A literal newline, spelled out: escapes inside Groovy strings written by tooling are a
 // recurring source of broken build scripts here.
