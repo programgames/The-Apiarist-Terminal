@@ -11,7 +11,7 @@ to be used with it — see `DEVELOPMENT.md`.
 
 ## The library
 
-`ocgendustry/lib/apiarist.lua` is the one meant for your own programs.
+`apiarist.lua`, which `install` puts in `/usr/lib`, is the one meant for your own programs.
 
 It exists because a callback cannot wait. A callback runs on the server thread, so looping in one
 until a machine finishes holds the tick loop — and every player on the server — for as long as it
@@ -52,8 +52,8 @@ a script asks. What matters is whether a cycle is running, not who started it, a
 
 ## The programs
 
-In `ocgendustry/examples/`. Each is a complete program you can run, and a worked example if you
-would rather read than run.
+`install` puts these in `/usr/bin`, so each is a command. Each is also a worked example, if you
+would rather read one than run it.
 
 | Command | What it does |
 |---|---|

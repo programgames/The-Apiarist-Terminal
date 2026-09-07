@@ -20,9 +20,10 @@ This document is for developers and CI maintainers working on The Apiarist Termi
 - `src/main/java/net/ocgendustry/command/OcGendustryCommand.java` — Gated in-game test harness (`/ocgendustry test advmutatron [fresh|reuse|all]`).
 - `src/main/resources/mcmod.info` — Mod metadata (hard depends on OC + Gendustry).
 - `src/main/resources/META-INF/ocgendustry_at.cfg` — Access transformer referenced by the jar manifest (`FMLAT`); FML resolves it relative to `META-INF`.
-- `src/main/resources/ocgendustry/lib/apiarist.lua` — the library shipped for players to `require`.
-- `src/main/resources/ocgendustry/examples/*.lua` — runnable programs shipped in the jar; the two
-  `advmutatron_*` rigs are also what the test harness writes out.
+- `src/main/resources/assets/ocgendustry/disk/` — the floppy `LootDisk` registers, laid out
+  verbatim: `.prop`, `usr/lib/apiarist.lua`, `usr/bin/*.lua`. The path is load-bearing:
+  `FileSystem.fromClass` resolves `/assets/<modid>/disk/` literally, so moving the directory breaks
+  the disk. The two `advmutatron_*` rigs are also what the test harness writes out.
 - `dev/scripts/*.lua` — acceptance tooling, **not** in the jar: `testall` walks every machine,
   `machine_test` takes one apart, `checkall` covers the library and the apiary, `nofreeze` times
   `selectAndProduce` and reports whether the call held the server thread. `./gradlew
