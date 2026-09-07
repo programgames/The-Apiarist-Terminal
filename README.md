@@ -38,6 +38,20 @@ Full callback reference can be found in per-component docs, along with quick sta
 - Industrial Apiary: `docs/components/industrial_apiary.md`
 - The eight other machines: `docs/components/processing_machines.md`
 
+## Lua programs and the library
+The jar carries nine Lua files under `ocgendustry/scripts/`: a library, `apiarist.lua`, and eight
+reference programs. `docs/scripts.md` says what each one does and how to get them onto a computer —
+they are jar resources, so a computer cannot reach them by itself.
+
+`apiarist.lua` is the one meant for your own programs. A callback cannot wait for a machine without
+holding the server thread, so the components expose state and signals and nothing that blocks; the
+library puts the waiting back where it is allowed, in Lua:
+
+```lua
+local apiarist = require("apiarist")
+local bee = apiarist.wrap("advmutatron"):produce(1, 60)   -- select, wait, return the product
+```
+
 ## Configuration
 - In-game: Mods -> The Apiarist Terminal -> Config opens a GUI to tweak defaults.
 - File: `config/ocgendustry.cfg` creates after first run. You can hand-edit values.

@@ -23,6 +23,9 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   processing machines already did. A script driving any machine through the generic inventory
   calls iterates over that field, and it came back `nil` from the two components most worth
   driving.
+- `docs/scripts.md`: what each of the nine shipped Lua files does, the library's whole surface, and
+  how to get them out of the jar and onto a computer. Five of the programs were documented nowhere,
+  and the README did not mention that the jar carries any.
 - `testall` writes everything it prints to `/home/testall.txt` as well. A full run is several
   screens long and the first machines scroll away before the summary appears.
 - `ocgendustry/scripts/checkall.lua`, the acceptance pass for what the other scripts leave
