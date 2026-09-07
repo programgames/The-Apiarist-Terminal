@@ -186,6 +186,30 @@ local function testMachine(name)
     return "idle"
   end
 
+  -- A machine can be working and still never reach a cycle boundary. A fluid machine whose output
+  -- tank is full stalls at progress 1.00 with nowhere to put the product: it is neither idle nor
+  -- finishing, so no _started or _finished will ever come. Demanding them there marks a correct
+  -- machine as broken, which is what the protein_liquifier run did.
+  local jammed = nil
+  local tanksNow = call(addr, "listTanks")
+  if type(tanksNow) == "table" then
+    for _, tank in pairs(tanksNow) do
+      if type(tank) == "table" and tank.capacity and tank.amount
+         and tank.amount >= tank.capacity then
+        jammed = string.format("%s tank full at %d/%d", tostring(tank.name or "output"),
+          tank.amount, tank.capacity)
+        break
+      end
+    end
+  end
+
+  if jammed then
+    totals.skipped = totals.skipped + 1
+    info("signals", "skipped: " .. jammed .. " -- the cycle cannot complete, so no edge can be raised")
+
+    return "stalled"
+  end
+
   local seen = { started = 0, finished = 0, output = 0 }
   local handlers = {}
   for _, key in ipairs({ "started", "finished", "output" }) do
